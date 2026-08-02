@@ -103,28 +103,39 @@ into your own `~/.claude/settings.json` and point the command at wherever you pu
 
 ## Wire it into Codex
 
-Codex uses the same hook contract, configured in TOML:
+This repo already ships [`.codex/hooks.json`](./.codex/hooks.json) — the Codex
+counterpart of `.claude/settings.json`, registering the **same** `ground_with_kg.py`
+under the **same** `UserPromptSubmit` event. So Codex needs no config editing — just a
+one-time trust approval:
 
-1. Install Codex (`npm install -g @openai/codex`) if needed.
-2. Open your Codex config at `~/.codex/config.toml` (create it if it doesn't
-   exist) and add the block from [`codex-config.example.toml`](./codex-config.example.toml):
-   ```toml
-   [[hooks.UserPromptSubmit]]
-
-   [[hooks.UserPromptSubmit.hooks]]
-   type = "command"
-   command = 'python3 "$(git rev-parse --show-toplevel)/ground_with_kg.py"'
-   timeout = 10
+1. Install Codex (`npm install -g @openai/codex`), version **0.146 or newer**
+   (`codex --version`).
+2. From inside your clone, run Codex once:
+   ```bash
+   cd lsst-hook-rag-demo
+   codex
    ```
-3. Run `codex` from inside your clone of this repo (so `git rev-parse` finds the
-   script) and ask an astronomy question. Same grounding, same script.
+   Codex discovers `.codex/hooks.json` by working directory and asks you to
+   **trust the grounding hook** — Codex won't silently run a program a cloned repo
+   dropped into your project (a good default for code you didn't write). Approve it
+   once; Codex records the trust and the hook fires on every prompt afterward, in
+   both interactive Codex *and* headless `codex exec`.
+3. Ask an astronomy question — the hook grounds it silently, exactly as in Claude Code.
 
-> **Why the same script works in both:** Codex uses the same `UserPromptSubmit`
-> hook event schema as Claude Code, including the `hookSpecificOutput.additionalContext`
-> output field. See the Codex config & hooks reference:
-> <https://developers.openai.com/codex/config-reference>. Codex is evolving
-> quickly — if the block ever silently does nothing, check the current Codex hooks
-> docs for renamed fields; the retrieval logic in `ground_with_kg.py` is unaffected.
+> **Same script, two tiny registration files.** `ground_with_kg.py` is byte-for-byte
+> identical in both tools — the ~90 lines never change. Only the small registration
+> file differs, and even those are near-identical JSON with the same `UserPromptSubmit`
+> event and the same `hookSpecificOutput.additionalContext` output. The only
+> differences: how each names the repo root in the command
+> (`$CLAUDE_PROJECT_DIR` for Claude Code vs `$(git rev-parse --show-toplevel)` for
+> Codex), and that Codex's entry takes an optional `timeout`. That's the whole delta.
+
+> **Heads-up if you script `codex exec` directly:** an **untrusted** hook is silently
+> skipped in headless `exec` (no error, it just doesn't run). Do the one-time interactive
+> `codex` trust above first, or pass `--dangerously-bypass-hook-trust` on each run.
+> Codex is evolving quickly — if grounding ever stops appearing, re-run `codex`
+> interactively to re-approve the hook; the retrieval logic in `ground_with_kg.py`
+> is unaffected.
 
 ---
 
@@ -172,8 +183,8 @@ That's the whole editing workflow — no schema, no migration, no rebuild.
 | `ground_with_kg.py` | The hook — reads the prompt, retrieves facts, injects them. ~90 lines, stdlib only. |
 | `astro_kg.json` | The knowledge base — asteroid families, orbital elements, LSST facts. Edit freely. |
 | `demo.py` | Before/after viewer so you can see the effect without wiring anything up. |
-| `.claude/settings.json` | Ready-made Claude Code hook config (works on clone). |
-| `codex-config.example.toml` | The equivalent Codex config block to paste into `~/.codex/config.toml`. |
+| `.claude/settings.json` | Ready-made Claude Code hook registration (works on clone). |
+| `.codex/hooks.json` | Ready-made Codex hook registration (works on clone, after a one-time trust approval). |
 
 ## Requirements
 
