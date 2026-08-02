@@ -58,17 +58,20 @@ def score(prompt_tokens: set[str], fact: dict) -> int:
 
     We match against the fact's curated `keywords` AND the words in its text,
     so a question phrased in the astronomer's own words still finds the fact.
+    Keywords are tokenized the same way as the prompt, so a hyphenated keyword
+    like "c-type" splits to {c, type} and still matches "C-type" in a question.
     """
-    haystack = set(fact.get("keywords", [])) | tokens(fact.get("text", ""))
+    haystack = tokens(" ".join(fact.get("keywords", []))) | tokens(fact.get("text", ""))
     return len(prompt_tokens & haystack)
 
 
 def retrieve(prompt: str, facts: list[dict], k: int = TOP_K) -> list[dict]:
     """Return the top-k facts whose keywords best overlap the prompt."""
     pt = tokens(prompt)
-    ranked = sorted(facts, key=lambda f: score(pt, f), reverse=True)
-    # Keep only facts that actually matched something.
-    return [f for f in ranked if score(pt, f) > 0][:k]
+    # Score every fact once, keep the ones that matched, best-first, take k.
+    scored = [(score(pt, f), f) for f in facts]
+    hits = [f for s, f in sorted(scored, key=lambda sf: sf[0], reverse=True) if s > 0]
+    return hits[:k]
 
 
 def build_context(hits: list[dict]) -> str:

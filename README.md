@@ -119,6 +119,13 @@ Codex uses the same hook contract, configured in TOML:
 3. Run `codex` from inside your clone of this repo (so `git rev-parse` finds the
    script) and ask an astronomy question. Same grounding, same script.
 
+> **Why the same script works in both:** Codex uses the same `UserPromptSubmit`
+> hook event schema as Claude Code, including the `hookSpecificOutput.additionalContext`
+> output field. See the Codex config & hooks reference:
+> <https://developers.openai.com/codex/config-reference>. Codex is evolving
+> quickly — if the block ever silently does nothing, check the current Codex hooks
+> docs for renamed fields; the retrieval logic in `ground_with_kg.py` is unaffected.
+
 ---
 
 ## Before / after — why it matters
