@@ -1,0 +1,95 @@
+{
+  "_comment": "A tiny hand-written knowledge base of astronomy facts. This is the 'KG' in RAG+KG. Add your own facts here — each one is a small, verifiable statement the model should prefer over its own recall. No database required; it's just JSON.",
+  "facts": [
+    {
+      "topic": "Orbital elements (the six Keplerian numbers)",
+      "keywords": ["orbital", "element", "elements", "keplerian", "semi-major", "axis", "eccentricity", "inclination", "node", "perihelion", "anomaly", "orbit"],
+      "text": "A heliocentric orbit is described by six Keplerian elements: semi-major axis a (size), eccentricity e (shape), inclination i (tilt to the ecliptic), longitude of ascending node Omega, argument of perihelion omega, and mean anomaly M (position along the orbit at an epoch)."
+    },
+    {
+      "topic": "Osculating vs proper elements",
+      "keywords": ["osculating", "proper", "element", "elements", "family", "families", "identify", "clustering", "planetary", "perturbation"],
+      "text": "Osculating elements are the instantaneous orbit at one epoch and oscillate under planetary perturbations. Proper elements are nearly-invariant averaged quantities (proper a, e, sin i) valid over millions of years. Asteroid families are identified by CLUSTERING IN PROPER ELEMENT SPACE, not osculating elements."
+    },
+    {
+      "topic": "Asteroid families definition",
+      "keywords": ["family", "families", "collisional", "fragment", "parent", "body", "cluster", "asteroid", "dynamical"],
+      "text": "An asteroid family is a group of minor bodies sharing similar proper orbital elements because they are collisional fragments of a common parent body. Families are found with Hierarchical Clustering Method (HCM) in proper (a, e, sin i) space."
+    },
+    {
+      "topic": "Themis family",
+      "keywords": ["themis", "family", "outer", "belt", "carbonaceous", "c-type", "water", "ice"],
+      "text": "The Themis family is a large collisional family in the outer main belt near semi-major axis a ~= 3.13 AU. Its members are primarily C-type (carbonaceous), and water-ice frost and a comet-like activity have been detected on some members (e.g. 24 Themis, 133P/Elst-Pizarro)."
+    },
+    {
+      "topic": "Koronis family",
+      "keywords": ["koronis", "family", "s-type", "ida", "outer", "belt", "prograde"],
+      "text": "The Koronis family sits in the outer main belt (a ~= 2.87 AU). Members are S-type (silicaceous). 243 Ida (visited by Galileo, has the moon Dactyl) is a Koronis member. Members show a curious clustering of spin-axis orientations (the 'Slivan states')."
+    },
+    {
+      "topic": "Eos family",
+      "keywords": ["eos", "family", "k-type", "outer", "belt", "inclined"],
+      "text": "The Eos family is an inclined family in the outer main belt (a ~= 3.01 AU, sin i ~= 0.18). Members are predominantly the rarer K-type spectral class, intermediate between S- and C-types."
+    },
+    {
+      "topic": "Vesta family (the vestoids)",
+      "keywords": ["vesta", "vestoid", "family", "v-type", "hed", "basaltic", "inner", "belt"],
+      "text": "The Vesta family ('vestoids') are inner-belt fragments (a ~= 2.36 AU) blasted off the crust of 4 Vesta by the Rheasilvia impact. They are V-type (basaltic) and are the parent source of the HED (howardite-eucrite-diogenite) meteorites."
+    },
+    {
+      "topic": "Flora family",
+      "keywords": ["flora", "family", "inner", "belt", "s-type", "l-chondrite"],
+      "text": "The Flora family is a large, diffuse inner-belt family (a ~= 2.2 AU) of S-type asteroids. It is a leading candidate source region for the L-chondrite meteorites."
+    },
+    {
+      "topic": "Kirkwood gaps",
+      "keywords": ["kirkwood", "gap", "gaps", "resonance", "resonances", "jupiter", "mean-motion", "3:1", "depletion"],
+      "text": "Kirkwood gaps are depleted zones in the main-belt semi-major-axis distribution at mean-motion resonances with Jupiter (e.g. the 3:1 at a ~= 2.50 AU, 5:2 at 2.82 AU, 2:1 at 3.27 AU). Resonant pumping of eccentricity clears asteroids from these zones."
+    },
+    {
+      "topic": "Yarkovsky effect",
+      "keywords": ["yarkovsky", "thermal", "drift", "spin", "family", "age", "semi-major", "nongravitational"],
+      "text": "The Yarkovsky effect is a small nongravitational thermal force that slowly changes an asteroid's semi-major axis (prograde rotators drift outward, retrograde inward). It spreads asteroid families in 'a' over time, so the V-shape of a family in (a, size) space is used to estimate the family's age."
+    },
+    {
+      "topic": "Near-Earth Object (NEO) classes",
+      "keywords": ["neo", "near-earth", "atira", "aten", "apollo", "amor", "pha", "hazardous", "earth"],
+      "text": "Near-Earth Objects are grouped by orbit into Atiras (interior to Earth), Atens (a < 1 AU, cross Earth), Apollos (a > 1 AU, cross Earth) and Amors (approach but don't cross). A Potentially Hazardous Asteroid (PHA) has a minimum orbit intersection distance <= 0.05 AU and absolute magnitude H <= 22."
+    },
+    {
+      "topic": "LSST and the Rubin Observatory",
+      "keywords": ["lsst", "rubin", "legacy", "survey", "space", "time", "telescope", "observatory", "vera"],
+      "text": "The Legacy Survey of Space and Time (LSST) is the 10-year survey conducted at the Vera C. Rubin Observatory on Cerro Pachon, Chile. It uses an 8.4 m (6.5 m effective) telescope with a 3.2-gigapixel camera and a 9.6 square degree field of view."
+    },
+    {
+      "topic": "LSST solar system yield",
+      "keywords": ["lsst", "yield", "discover", "discovery", "millions", "asteroid", "asteroids", "neo", "tno", "catalog", "solar"],
+      "text": "Over its 10-year survey LSST is expected to catalog roughly 5 million main-belt asteroids, ~100,000 NEOs, ~10,000+ trans-Neptunian objects, and thousands of comets — increasing the number of known solar system small bodies by an order of magnitude."
+    },
+    {
+      "topic": "LSST alert stream",
+      "keywords": ["alert", "alerts", "stream", "brokers", "broker", "transient", "difference", "night", "10", "million", "real-time"],
+      "text": "LSST issues a real-time alert for every source that changes brightness or position, ~10 million alerts per night, within 60 seconds of exposure. Alerts are distributed through community brokers (e.g. ANTARES, ALeRCE, Fink, Lasair) that filter and classify them."
+    },
+    {
+      "topic": "Difference imaging (DIA)",
+      "keywords": ["difference", "imaging", "dia", "subtraction", "template", "transient", "moving", "detection", "residual"],
+      "text": "Difference Image Analysis (DIA) subtracts a deep static template from each new exposure so only things that changed remain. It is how LSST detects moving objects and transients: a real moving asteroid leaves a positive residual that shifts between visits."
+    },
+    {
+      "topic": "Linking detections into orbits (MOPS / tracklets)",
+      "keywords": ["mops", "tracklet", "tracklets", "linking", "link", "orbit", "detection", "detections", "moving", "object", "processing", "digest2"],
+      "text": "Single-night detections of a moving object are linked into a 'tracklet'; tracklets across several nights are linked into a 'track' and fit to a preliminary orbit (the Moving Object Processing System heritage, HelioLinC3D for Rubin). digest2 scores how likely a tracklet is a NEO."
+    },
+    {
+      "topic": "Absolute magnitude H and size",
+      "keywords": ["absolute", "magnitude", "h", "size", "diameter", "albedo", "photometry", "brightness"],
+      "text": "An asteroid's absolute magnitude H is its brightness at 1 AU from both Sun and observer at zero phase angle. Diameter follows from H and the geometric albedo p_V: D(km) = 1329 / sqrt(p_V) * 10^(-H/5). Albedo separates dark C-types (p_V ~ 0.05) from bright S/V-types (p_V ~ 0.2-0.4)."
+    },
+    {
+      "topic": "Main-belt spectral / taxonomic classes",
+      "keywords": ["taxonomy", "taxonomic", "spectral", "class", "classes", "c-type", "s-type", "x-type", "v-type", "albedo", "color", "composition"],
+      "text": "Main-belt taxonomy from reflectance colors: C-types (dark, carbonaceous, dominate the outer belt), S-types (silicaceous, dominate the inner belt), X-types (metallic/enstatite, ambiguous albedo), plus smaller V, K, L, D classes. LSST's six ugrizy filters give coarse colors for taxonomic sorting at survey scale."
+    }
+  ]
+}
