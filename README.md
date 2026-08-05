@@ -34,7 +34,7 @@ poison it to see grounding's failure mode.
 You need [Ollama](https://ollama.com) (free, runs models locally) and Python 3.9+.
 
 ```bash
-ollama pull llama3.2                 # ~2 GB, runs fine on a laptop
+ollama pull llama3.2
 git clone https://github.com/neherdata/lsst-hook-rag-demo.git
 cd lsst-hook-rag-demo
 python3 demo.py "Why do we use proper elements to find asteroid families?"
