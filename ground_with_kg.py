@@ -8,8 +8,6 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import numpy as np  # TF-IDF vector operations
-
 TOP_K = 3
 KG_PATH = Path(__file__).resolve().parent / "astro_kg.json"
 
@@ -65,11 +63,13 @@ def _tfidf_vector(term_list: list[str], idfs: dict) -> dict:
 
 def _cosine_similarity(vec_a: dict, vec_b: dict) -> float:
     """Cosine similarity between two TF-IDF vectors (dicts)."""
-    dot_product = sum(vec_a.get(term, 0) * vec_b.get(term, 0)
-                      for term in set(vec_a.keys()) | set(vec_b.keys()))
+    dot_product = sum(
+        vec_a.get(term, 0) * vec_b.get(term, 0)
+        for term in set(vec_a.keys()) | set(vec_b.keys())
+    )
 
-    mag_a = math.sqrt(sum(v ** 2 for v in vec_a.values()))
-    mag_b = math.sqrt(sum(v ** 2 for v in vec_b.values()))
+    mag_a = math.sqrt(sum(v**2 for v in vec_a.values()))
+    mag_b = math.sqrt(sum(v**2 for v in vec_b.values()))
 
     if mag_a == 0 or mag_b == 0:
         return 0.0
