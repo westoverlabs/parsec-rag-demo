@@ -221,49 +221,61 @@ of context by hand.
 
 ## Using this with OpenCode (TUI agent)
 
-If you use **OpenCode** or **Goose** (a TUI AI agent), you can wire in grounding via
-environment variables and context injection. The exact setup depends on which tool you
-use and how its extension system works.
+**OpenCode** is a TUI AI agent that works great with local models. This repo ships a
+project-local config (`.opencode/opencode.jsonc`) ready for the demo — no setup needed
+beyond what you did for `ask_ollama.py`.
 
-**Best approach for tonight's talk:** use `ask_ollama.py` (above) to see the grounding
-effect live on a real model, then run OpenCode/Goose pointed at the same local Ollama
-instance. They'll use the same model and backend — you've already proven the power of
-RAG with the side-by-side demo.
+**Best approach for tonight's talk:**
 
-### If using Goose (CLI agent)
+1. **Prove grounding works** with `ask_ollama.py` (see the before/after side-by-side).
+2. **Drop into the TUI** with OpenCode pointed at the same local Ollama instance.
 
-Goose supports context injection via the "Top Of Mind" (`tom`) extension:
+The grounding proof is the payload; the TUI session lets attendees experience a real agent
+interacting with grounded facts. Both use the same model and same local backend — no cloud,
+no API keys.
 
-```bash
-# Set up context before each session:
-export GOOSE_MOIM_MESSAGE_FILE=$(pwd)/astro_kg.json
-goose session --name astronomy-demo
-```
-
-Or point to a formatted context file:
+### Quick start with OpenCode
 
 ```bash
-export GOOSE_MOIM_MESSAGE_TEXT="You have access to astronomy facts. Use them to ground your answers."
-goose session
+# From inside your clone of this repo:
+cd lsst-hook-rag-demo
+
+# Start OpenCode (pointed at local Ollama via .opencode/opencode.jsonc):
+opencode
+
+# Or run a one-shot grounded question:
+opencode run "Why do we use proper elements to find asteroid families?"
 ```
 
-**To use Ollama**: Goose supports local-models via `goose local-models`, and can be
-configured to use local inference. Check `~/.config/goose/config.yaml` for provider
-settings; the environment variable `GOOSE_PROVIDER` controls which model backend is used.
+The project-local `.opencode/opencode.jsonc` config is minimal and project-focused — it
+prepares the environment but lets OpenCode's interactive interface be the show. If you
+need to specify a particular model or Ollama host, pass `--model ollama/qwen2.5:7b` or
+set it in the config before starting.
 
-### If using other editors / TUI agents
+### Project config (`.opencode/opencode.jsonc`)
 
-If your TUI agent has a hook or context-injection system, follow this pattern:
+The repo ships an empty project config that signals "I'm an OpenCode project" to your IDE.
+The actual model provider is configured in your global OpenCode settings
+(`~/.config/opencode/opencode.jsonc`) — just make sure Ollama is listed as a provider and
+you're good. If you want to auto-select a model for this project, add:
 
-1. Point the hook at `ground_with_kg.py` (like Claude Code / Codex do above).
-2. Or: inject the `astro_kg.json` facts into your agent's system context via that tool's
-   config or environment.
-3. Or: use `ask_ollama.py` first to demonstrate the effect, then continue your session
-   knowing grounding is in play.
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json"
+  // Future: model defaults here if OpenCode adds per-project defaults
+}
+```
 
-The retrieval logic in `ground_with_kg.py` is tool-agnostic — it works anywhere you can
-call Python and inject JSON. The ~90 lines are the portable part; the hook registration
-varies by tool.
+### No direct hook integration (honest assessment)
+
+Unlike Claude Code and Codex, OpenCode does NOT have a `UserPromptSubmit`-style hook
+that can automatically inject grounding. OpenCode uses MCP (Model Context Protocol) for
+tool/integration support, but RAG-on-every-prompt would need a custom MCP server (more
+plumbing than a talk demo warrants).
+
+**Instead:** The honest approach that works is `ask_ollama.py` (proven above) +
+OpenCode TUI session on the same backend. You've already shown grounding changes answers;
+the TUI is the experience layer.
 
 ---
 
