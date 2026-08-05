@@ -139,6 +139,66 @@ one-time trust approval:
 
 ---
 
+## Ask a local Ollama model (free, laptop-portable)
+
+Want to see RAG grounding in action on a **real model** without any cloud service or API key?
+This demo ships `ask_ollama.py`, which runs the same retrieval + grounding on a local
+**Ollama** instance so you can watch the before-and-after answers side by side.
+
+This is especially powerful for small models (like **llama3.2** or **qwen3.5:2b** at ~2GB)
+because their built-in recall is the thinnest — RAG grounding closes the widest gap on
+exactly the models attendees will run on their laptops tonight. The ungrounded version
+flounders; grounded, it nails it.
+
+### Setup (5 minutes)
+
+1. **Install Ollama** (https://ollama.com) if you don't have it, then start the server:
+   ```bash
+   ollama serve
+   ```
+   (Runs on `localhost:11434` by default; set `OLLAMA_HOST=http://your.host:11434` if elsewhere.)
+
+2. **Pull a small model** (run in another terminal):
+   ```bash
+   ollama pull llama3.2   # ~2 GB; very capable for its size
+   ```
+   Or use any model already on your system — `qwen3.5:2b` (~2.7 GB), `gemma4:7b`, etc.
+
+3. **Run the grounded question**:
+   ```bash
+   python3 ask_ollama.py "Why do we use proper elements to find asteroid families?"
+   ```
+
+   The script calls Ollama **twice** — once without grounding, once with your KG facts
+   injected — and prints both answers. You'll see the difference immediately: the
+   grounded model gives a crisper, more accurate answer.
+
+### Options
+
+```bash
+# Use a different model
+OLLAMA_MODEL=qwen3.5:2b python3 ask_ollama.py "..."
+
+# Skip the ungrounded call (faster if you just want to see the grounded answer)
+python3 ask_ollama.py --grounded-only "..."
+
+# Point at a different Ollama host (e.g., on a server)
+OLLAMA_HOST=http://192.168.1.100:11434 python3 ask_ollama.py "..."
+```
+
+### Why RAG matters MORE for small models
+
+Large cloud models (Claude, GPT) have enormous recall built in — they've seen vast
+swaths of the internet and remember a lot. RAG helps them stay grounded in YOUR specific
+facts, but they often do okay without it.
+
+Small local models have thin recall — they only "know" what they were trained on, and
+details are fuzzy. **RAG grounding is what turns them from "maybe right" to "definitely
+right."** That's why tonight's demo lands hardest on the laptop models attendees are
+actually running.
+
+---
+
 ## Before / after — why it matters
 
 **Without the hook**, you ask *"Why do we cluster in proper element space to find
@@ -156,6 +216,54 @@ standard-library Python in a hook.** Point it at your asteroid families, your
 observing logs, your instrument notes — and spend your attention on the science
 (*"could these two detections be the same object?"*) instead of on managing arrays
 of context by hand.
+
+---
+
+## Using this with OpenCode (TUI agent)
+
+If you use **OpenCode** or **Goose** (a TUI AI agent), you can wire in grounding via
+environment variables and context injection. The exact setup depends on which tool you
+use and how its extension system works.
+
+**Best approach for tonight's talk:** use `ask_ollama.py` (above) to see the grounding
+effect live on a real model, then run OpenCode/Goose pointed at the same local Ollama
+instance. They'll use the same model and backend — you've already proven the power of
+RAG with the side-by-side demo.
+
+### If using Goose (CLI agent)
+
+Goose supports context injection via the "Top Of Mind" (`tom`) extension:
+
+```bash
+# Set up context before each session:
+export GOOSE_MOIM_MESSAGE_FILE=$(pwd)/astro_kg.json
+goose session --name astronomy-demo
+```
+
+Or point to a formatted context file:
+
+```bash
+export GOOSE_MOIM_MESSAGE_TEXT="You have access to astronomy facts. Use them to ground your answers."
+goose session
+```
+
+**To use Ollama**: Goose supports local-models via `goose local-models`, and can be
+configured to use local inference. Check `~/.config/goose/config.yaml` for provider
+settings; the environment variable `GOOSE_PROVIDER` controls which model backend is used.
+
+### If using other editors / TUI agents
+
+If your TUI agent has a hook or context-injection system, follow this pattern:
+
+1. Point the hook at `ground_with_kg.py` (like Claude Code / Codex do above).
+2. Or: inject the `astro_kg.json` facts into your agent's system context via that tool's
+   config or environment.
+3. Or: use `ask_ollama.py` first to demonstrate the effect, then continue your session
+   knowing grounding is in play.
+
+The retrieval logic in `ground_with_kg.py` is tool-agnostic — it works anywhere you can
+call Python and inject JSON. The ~90 lines are the portable part; the hook registration
+varies by tool.
 
 ---
 
@@ -183,6 +291,7 @@ That's the whole editing workflow — no schema, no migration, no rebuild.
 | `ground_with_kg.py` | The hook — reads the prompt, retrieves facts, injects them. ~90 lines, stdlib only. |
 | `astro_kg.json` | The knowledge base — asteroid families, orbital elements, LSST facts. Edit freely. |
 | `demo.py` | Before/after viewer so you can see the effect without wiring anything up. |
+| `ask_ollama.py` | **Free laptop path** — ask a local Ollama model twice (ungrounded vs grounded). See RAG in action, no API key. |
 | `.claude/settings.json` | Ready-made Claude Code hook registration (works on clone). |
 | `.codex/hooks.json` | Ready-made Codex hook registration (works on clone, after a one-time trust approval). |
 
