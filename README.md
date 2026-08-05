@@ -35,8 +35,8 @@ You need [Ollama](https://ollama.com) (free, runs models locally) and Python 3.9
 
 ```bash
 ollama pull llama3.2
-git clone https://github.com/neherdata/lsst-hook-rag-demo.git
-cd lsst-hook-rag-demo
+git clone https://github.com/westoverlabs/parsec-rag-demo.git
+cd parsec-rag-demo
 python3 demo.py "Why do we use proper elements to find asteroid families?"
 ```
 
