@@ -21,6 +21,9 @@ cd "$REPO_DIR"
 say()  { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 info() { printf '    %s\n' "$1"; }
 
+# shellcheck source=demo_lib.sh
+. "$REPO_DIR/demo_lib.sh"
+
 say "Resetting the demo"
 
 # ---------------------------------------------------------- knowledge base
@@ -56,6 +59,9 @@ if [ -n "$temps" ]; then
 else
   info "temp files     none left behind."
 fi
+
+# ------------------------------------------------- opencode session history
+clear_opencode_sessions
 
 # ------------------------------------------------------------------ verify
 say "State after reset"

@@ -49,6 +49,9 @@ say()  { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 info() { printf '    %s\n' "$1"; }
 die()  { printf '\n\033[31mx  %s\033[0m\n' "$1" >&2; exit 1; }
 
+# shellcheck source=demo_lib.sh
+. "$REPO_DIR/demo_lib.sh"
+
 cd "$REPO_DIR"
 
 # ---------------------------------------------------------------- 1. Ollama
@@ -217,6 +220,15 @@ fi
 
 rm -f "$REPO_DIR/.rag_off"
 info "grounding flag reset: grounding is ON (.rag_off absent)."
+
+# Start every demo from a blank conversation. The live TUI keeps a running
+# transcript, and this demo asks the SAME question several times as grounding
+# flips on -> off -> poisoned; carried over from a previous run, a small model
+# starts replaying old answers ("I already answered this") instead of re-reading
+# the KB. One-shot `opencode run` never sees this (each run is a fresh session);
+# the interactive TUI does. Clear ONLY this repo's opencode sessions -- never
+# your other opencode work.
+clear_opencode_sessions "starting fresh"
 
 if command -v opencode >/dev/null 2>&1; then
   say "Verifying opencode can see the MCP server"
