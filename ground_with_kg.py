@@ -1,43 +1,19 @@
 #!/usr/bin/env python3
-"""ground_with_kg.py — a ~90-line RAG + KG grounding hook (Python stdlib only).
-
-WHAT THIS IS
-------------
-A `UserPromptSubmit` hook. Both Claude Code and OpenAI Codex run a small program
-of your choosing every time you hit Enter, BEFORE your prompt reaches the model.
-This program:
-
-    1. reads your prompt (the coding agent hands it to us as JSON on stdin),
-    2. searches a tiny local knowledge base of astronomy facts (astro_kg.json),
-    3. picks the few most relevant facts (plain keyword overlap — no embeddings,
-       no database, no network),
-    4. injects them into the model's context so it answers grounded in YOUR facts.
-
-That is Retrieval-Augmented Generation (RAG) over a Knowledge Graph (KG), in one
-file. The astronomer types a question; the right domain facts show up silently.
-
-It works UNCHANGED in Claude Code and Codex because both accept the same output:
-JSON with `hookSpecificOutput.additionalContext`.
-
-FAIL-OPEN: if anything goes wrong we inject nothing and exit 0, so a broken hook
-never blocks your prompt. (Never let plumbing get between you and your question.)
-"""
+"""ground_with_kg.py — TF-IDF cosine similarity RAG + KG grounding hook."""
 
 import json
+import math
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
-# How many facts to inject. Small on purpose — grounding, not a data dump.
+import numpy as np  # TF-IDF vector operations
+
 TOP_K = 3
-# The knowledge base lives next to this script, so the hook works from any cwd.
 KG_PATH = Path(__file__).resolve().parent / "astro_kg.json"
 
 _WORD = re.compile(r"[a-z0-9]+")
-
-# Common words carry no topic signal. Dropping them stops an unrelated prompt
-# ("what is the weather today") from matching every fact on shared words like
-# "the" or "is". This is the toy version of a real search engine's stop-list.
 _STOPWORD_TEXT = """
     a an the of to in on at for and or but is are be by with from as it its
     this that these those we you they i he she what which who how why when
@@ -48,29 +24,88 @@ _STOPWORD_TEXT = """
 _STOPWORDS = frozenset(_STOPWORD_TEXT.split())
 
 
-def tokens(text: str) -> set[str]:
+def tokens(text: str) -> list[str]:
     """Lowercase, split into word tokens, and drop uninformative stopwords."""
-    return {w for w in _WORD.findall(text.lower()) if w not in _STOPWORDS}
+    return [w for w in _WORD.findall(text.lower()) if w not in _STOPWORDS]
 
 
-def score(prompt_tokens: set[str], fact: dict) -> int:
-    """Relevance = how many of the prompt's words appear in this fact.
+def _compute_idfs(facts: list[dict]) -> dict:
+    """Compute IDF (inverse document frequency) for all terms in the corpus."""
+    num_facts = len(facts)
+    if num_facts == 0:
+        return {}
 
-    We match against the fact's curated `keywords` AND the words in its text,
-    so a question phrased in the astronomer's own words still finds the fact.
-    Keywords are tokenized the same way as the prompt, so a hyphenated keyword
-    like "c-type" splits to {c, type} and still matches "C-type" in a question.
-    """
-    haystack = tokens(" ".join(fact.get("keywords", []))) | tokens(fact.get("text", ""))
-    return len(prompt_tokens & haystack)
+    doc_freq = Counter()
+    for fact in facts:
+        fact_text = " ".join(fact.get("keywords", [])) + " " + fact.get("text", "")
+        fact_terms = set(tokens(fact_text))
+        doc_freq.update(fact_terms)
+
+    idfs = {}
+    for term, df in doc_freq.items():
+        if df > 0:
+            idfs[term] = math.log(num_facts / df)
+    return idfs
+
+
+def _tfidf_vector(term_list: list[str], idfs: dict) -> dict:
+    """Compute TF-IDF vector: {term: tf * idf} for all terms."""
+    if not term_list:
+        return {}
+
+    tf = Counter(term_list)
+    total = len(term_list)
+
+    vector = {}
+    for term, count in tf.items():
+        if term in idfs:
+            vector[term] = (count / total) * idfs[term]
+    return vector
+
+
+def _cosine_similarity(vec_a: dict, vec_b: dict) -> float:
+    """Cosine similarity between two TF-IDF vectors (dicts)."""
+    dot_product = sum(vec_a.get(term, 0) * vec_b.get(term, 0)
+                      for term in set(vec_a.keys()) | set(vec_b.keys()))
+
+    mag_a = math.sqrt(sum(v ** 2 for v in vec_a.values()))
+    mag_b = math.sqrt(sum(v ** 2 for v in vec_b.values()))
+
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+
+    return dot_product / (mag_a * mag_b)
+
+
+def score(query_vector: dict, fact: dict, idfs: dict) -> float:
+    """Score a fact using TF-IDF cosine similarity against the query vector."""
+    fact_text = " ".join(fact.get("keywords", [])) + " " + fact.get("text", "")
+    fact_terms = tokens(fact_text)
+    fact_vector = _tfidf_vector(fact_terms, idfs)
+    return _cosine_similarity(query_vector, fact_vector)
 
 
 def retrieve(prompt: str, facts: list[dict], k: int = TOP_K) -> list[dict]:
-    """Return the top-k facts whose keywords best overlap the prompt."""
-    pt = tokens(prompt)
-    # Score every fact once, keep the ones that matched, best-first, take k.
-    scored = [(score(pt, f), f) for f in facts]
-    hits = [f for s, f in sorted(scored, key=lambda sf: sf[0], reverse=True) if s > 0]
+    """Return the top-k facts by TF-IDF cosine similarity to the prompt."""
+    prompt_terms = tokens(prompt)
+
+    if not prompt_terms:
+        return []
+
+    idfs = _compute_idfs(facts)
+
+    query_vector = _tfidf_vector(prompt_terms, idfs)
+
+    if not query_vector:
+        return []
+
+    scored = []
+    for fact in facts:
+        sim = score(query_vector, fact, idfs)
+        if sim > 0:
+            scored.append((sim, fact))
+
+    hits = [f for s, f in sorted(scored, key=lambda sf: sf[0], reverse=True)]
     return hits[:k]
 
 
@@ -84,8 +119,6 @@ def build_context(hits: list[dict]) -> str:
 
 
 def main() -> None:
-    # Both Claude Code and Codex send a JSON object on stdin; the user's prompt
-    # is under the "prompt" key. We don't care about the other fields here.
     payload = json.load(sys.stdin)
     prompt = payload.get("prompt", "")
 
@@ -93,11 +126,8 @@ def main() -> None:
     hits = retrieve(prompt, facts)
 
     if not hits:
-        # Nothing relevant — inject nothing. The prompt passes through untouched.
         return
 
-    # The one line that makes the magic work: hand the model extra context.
-    # This exact JSON shape is understood by BOTH Claude Code and Codex.
     print(
         json.dumps(
             {
@@ -113,7 +143,5 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception:  # noqa: BLE001,S110 - intentional fail-open: a hook must never block your prompt
-        # Fail open: on ANY error we inject nothing and exit 0, so a broken hook
-        # or a malformed KG file can never get between you and your question.
+    except Exception:
         pass
