@@ -296,10 +296,12 @@ Keep that second terminal on screen. The demo:
 1. Ask: **"What causes the Kirkwood gaps?"** → grounded, precise: mean-motion
    resonances with Jupiter, the 3:1 at ~2.50 AU.
 2. Second terminal: `touch .rag_off`
-3. Ask **the same question again**. The model now prefixes its answer with
-   `ANSWER: UNGROUNDED` and falls back to memory — in our runs, *"gravity
-   perturbations by nearby giant planets"*: correct in spirit, vague on detail.
-4. `rm .rag_off` and ask once more. Precision returns.
+3. Ask **the same question again**. The model announces it is answering
+   `UNGROUNDED` and falls back to memory. What comes out is a lottery — one of
+   our runs was roughly right, another blamed Jupiter's moons, another described
+   a completely different (stellar) phenomenon. Ask it two or three times; the
+   instability *is* the demo.
+4. `rm .rag_off` and ask once more. Precision and repeatability return.
 
 Nothing restarted. Nothing recompiled. One empty file.
 
@@ -348,20 +350,46 @@ Here is what we actually got from `llama3.2`, all three ways, same question:
 
 | Grounding | Answer |
 |---|---|
-| **Off** (own memory) | *"...due to gravity perturbations by nearby giant planets."* — roughly right |
-| **On**, true KB | *"...mean-motion resonances with Jupiter... resonant pumping of eccentricity clears asteroids from these zones."* — right and precise |
-| **On**, poisoned KB | *"The Kirkwood gaps are cleared due to Jupiter's strong magnetic field, which repels the iron-rich objects in those areas, forcing them into the Trojan regions."* — **confidently wrong** |
+| **Off** (own memory) | A lottery. Across four runs: once roughly right (*"gravity perturbations by nearby giant planets"*), once blaming *"Jupiter's moons, particularly Io and Europa"*, once describing Kirkwood gaps as a **binary-star radial-velocity** phenomenon, once no answer at all. |
+| **On**, true KB | *"...mean-motion resonances with Jupiter... resonant pumping of eccentricity clears asteroids from these zones"*, with the 3:1 at ~2.50 AU. Right, precise, and repeatable. |
+| **On**, poisoned KB | *"The Kirkwood gaps are cleared due to Jupiter's strong magnetic field, which repels the iron-rich objects in those areas, forcing them into the Trojan regions."* — **confidently wrong**, every time. |
 
-Read the first and third rows together. Ungrounded, the model **knew roughly the
-right answer**. We handed it a document that said otherwise, told it to prefer the
-document over its own recall, and it complied — surrendering a correct belief for
-a false one, with no hedging and no drop in confidence.
+Two things to draw out, and the second is the important one.
+
+**Grounding removes variance.** The ungrounded column isn't just "sometimes
+wrong" — it's *unstable*. Ask three times, get three different physics. The
+grounded column says the same correct thing every time. For a small local model
+that consistency is most of the value.
+
+**But consistency is not truth.** The poisoned row is delivered in exactly the
+same calm, precise register as the correct one. Nothing in the model's tone,
+hedging, or confidence distinguishes "grounded in something true" from "grounded
+in something I made up sixty seconds ago." The model isn't evaluating the claim;
+it's deferring to it — because we told it to prefer the document over its own
+recall, and it did.
+
+**"That's just a 3B model being dumb."** It isn't. We ran the identical test on
+`gpt-oss:20b-cloud`, a far more capable model, and it is the more damning result:
+
+> **Ungrounded**, asked what causes the Kirkwood gaps, it answered *correctly* —
+> orbital resonances with Jupiter, 3:1 and 5:2, eccentricity pumped until the
+> asteroid is ejected. It plainly knew the physics.
+>
+> **Grounded on the poisoned KB**, same question: *"The Kirkwood gaps are caused
+> by Jupiter's magnetic field, which sweeps the iron-rich asteroids out of those
+> zones and herds them into the Trojan swarms."*
+
+A model that demonstrably knew the right answer discarded it because a retrieved
+document said otherwise. Capability doesn't save you here — arguably the better
+the model is at following your instructions, the more faithfully it will repeat
+whatever you put in front of it.
 
 **RAG is a trust mechanism, not a truth mechanism.** It moves authority from the
 model's weights to your knowledge base. That's exactly what you want — *provided
 the knowledge base is right*. Grounding doesn't make a model truthful; it makes it
 faithful to a source. Curation, provenance, and review of that source are now part
-of your science, not an IT detail. Garbage in, garbage out — delivered fluently.
+of your science, not an IT detail. Garbage in, garbage out — delivered fluently,
+and in the same voice as the truth.
 
 Put it back:
 
@@ -382,11 +410,14 @@ git checkout astro_kg.json
 - **The model chooses whether to call the tool.** Usually it does; occasionally a
   small model answers without it. The `astro` agent's system prompt pushes hard on
   calling `search_astro_kb` first. The hook path in step 4 has no such gap.
-- **`llama3.2` is a 3B model in an agent loop**, and it sometimes formats a tool
-  call as visible text or takes two tries. That's the honest state of small-model
-  tool use. The `astro` agent has file, shell and edit tools **disabled** — it can
-  only touch the knowledge base — so a confused model can't wander into your
-  filesystem in front of an audience.
+- **`llama3.2` is a 3B model in an agent loop, and it is visibly flaky.** In our
+  testing it sometimes printed a malformed tool call as plain text and returned
+  no answer at all. If that happens live, just ask again — it usually recovers.
+  If you want a steadier agent, `gpt-oss:20b-cloud` on the free tier handled the
+  same tool calls cleanly every time we tried. The `astro` agent also has file,
+  shell and edit tools **disabled** — it can only touch the knowledge base — which
+  was added after `llama3.2`, mid-run, tried to edit a file outside the repo.
+  Don't take that risk in front of an audience.
 - **Reasoning models pause before answering.** `qwen3.5:2b` thinks first, so
   expect a silent gap. `llama3.2` is the snappier choice for a live room.
 
