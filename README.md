@@ -171,7 +171,7 @@ running on your laptop tonight.
 
 ---
 
-## Step 3 — The whole trick, in one file
+## Step 3 — The whole trick, in one file (the hidden magic in this repo)
 
 [`ground_with_kg.py`](./ground_with_kg.py) is a **UserPromptSubmit hook**. Claude
 Code and Codex both run it right before your prompt reaches the model, handing it
