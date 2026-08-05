@@ -163,8 +163,37 @@ say "Checking opencode (the TUI agent)"
 if command -v opencode >/dev/null 2>&1; then
   info "opencode found: $(opencode --version 2>/dev/null || echo present)"
 else
-  command -v npm >/dev/null 2>&1 \
-    || die "npm not found. Install Node.js from https://nodejs.org, then re-run."
+  if ! command -v npm >/dev/null 2>&1; then
+    info "npm not found (needed to install opencode)."
+    case "$(uname -s)" in
+      Darwin)
+        if command -v brew >/dev/null 2>&1; then
+          info "installing Node with: brew install node"
+          brew install node
+        else
+          die "Install Homebrew (https://brew.sh) then: brew install node -- or install Node.js from https://nodejs.org, then re-run."
+        fi
+        ;;
+      Linux)
+        if command -v apt-get >/dev/null 2>&1; then
+          info "installing with: sudo apt-get install -y nodejs npm"
+          sudo apt-get update && sudo apt-get install -y nodejs npm
+        elif command -v dnf >/dev/null 2>&1; then
+          info "installing with: sudo dnf install -y nodejs npm"
+          sudo dnf install -y nodejs npm
+        elif command -v pacman >/dev/null 2>&1; then
+          info "installing with: sudo pacman -S --noconfirm nodejs npm"
+          sudo pacman -S --noconfirm nodejs npm
+        else
+          die "Install Node.js with your distro's package manager (nodejs + npm), then re-run."
+        fi
+        ;;
+      *)
+        die "Install Node.js from https://nodejs.org, then re-run. (Windows isn't a supported path for this demo.)"
+        ;;
+    esac
+  fi
+  command -v npm >/dev/null 2>&1 || die "npm still not found after install attempt -- install Node.js manually, then re-run."
   info "installing with: npm install -g opencode-ai"
   npm install -g opencode-ai
 fi
