@@ -1,0 +1,7 @@
+{
+  "name": "parsec-grounding-plugin",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "opencode chat.message plugin: auto-grounds prompts from astro_kg.json, the native equivalent of the Claude Code / Codex UserPromptSubmit hook."
+}

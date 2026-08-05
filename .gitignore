@@ -8,3 +8,11 @@ __pycache__/
 .rag_off
 # Atomic-write temporaries from the MCP server's KG edits.
 .astro_kg.*.tmp
+
+# opencode plugin runtime -- auto-generated when opencode loads the plugin.
+# The plugin SOURCE (.opencode/plugin/*.js, package.json, README) is tracked;
+# these regenerated bits are not.
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock

@@ -5,6 +5,7 @@
 #     ./start_tui_demo.sh                 # local model (default)
 #     ./start_tui_demo.sh --cloud         # Ollama Cloud instead of local compute
 #     ./start_tui_demo.sh --check         # set up and verify, but don't launch
+#     ./start_tui_demo.sh --plugin        # auto-ground every prompt (hook-style)
 #     MODEL=qwen3.5:2b ./start_tui_demo.sh
 #
 # It installs only what's missing, and never installs anything without telling
@@ -24,6 +25,7 @@ OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK_ONLY=0
 USE_CLOUD=0
+USE_PLUGIN=0
 
 # A "low usage" cloud model -- gentler on the free tier's hourly/daily allowance
 # than the very large ones.
@@ -33,6 +35,7 @@ for arg in "$@"; do
   case "$arg" in
     --check) CHECK_ONLY=1 ;;
     --cloud) USE_CLOUD=1 ;;
+    --plugin) USE_PLUGIN=1 ;;
     # Header comment block, stopping at the first line of real code.
     -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg (try --help)" >&2; exit 1 ;;
@@ -236,6 +239,17 @@ if command -v opencode >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------ 7. Launch
+# --plugin: turn on the opencode auto-grounding plugin (.opencode/plugin/). It
+# grounds every prompt automatically, the way the Claude Code / Codex hook does,
+# instead of relying on the model to call the search tool. Off by default so the
+# default demo keeps the visible tool call; see .opencode/plugin/README.md.
+if [ "$USE_PLUGIN" = "1" ]; then
+  export PARSEC_PLUGIN_GROUNDING=1
+  info "auto-grounding plugin: ON (every prompt grounded automatically)."
+else
+  info "auto-grounding plugin: off (grounding via the visible MCP tool call)."
+fi
+
 if [ "$CHECK_ONLY" = "1" ]; then
   say "All set (--check: not launching)"
   info "Start it yourself with:  opencode --agent astro --model ollama/$MODEL"
