@@ -83,7 +83,6 @@ An older or smaller machine may pull `llama3.2` and then grind. Ollama has a
 not a workaround:
 
 ```bash
-# opens a browser tab; sign up or log in
 ollama signin
 
 python3 demo.py --model gpt-oss:20b-cloud "Why do we use proper elements to find asteroid families?"
