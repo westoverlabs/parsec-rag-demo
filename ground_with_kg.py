@@ -24,8 +24,10 @@ never blocks your prompt. (Never let plumbing get between you and your question.
 """
 
 import json
+import math
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 # How many facts to inject. Small on purpose — grounding, not a data dump.
@@ -48,29 +50,117 @@ _STOPWORD_TEXT = """
 _STOPWORDS = frozenset(_STOPWORD_TEXT.split())
 
 
-def tokens(text: str) -> set[str]:
-    """Lowercase, split into word tokens, and drop uninformative stopwords."""
-    return {w for w in _WORD.findall(text.lower()) if w not in _STOPWORDS}
+def tokens(text: str) -> list[str]:
+    """Lowercase, split into word tokens, and drop uninformative stopwords.
 
-
-def score(prompt_tokens: set[str], fact: dict) -> int:
-    """Relevance = how many of the prompt's words appear in this fact.
-
-    We match against the fact's curated `keywords` AND the words in its text,
-    so a question phrased in the astronomer's own words still finds the fact.
-    Keywords are tokenized the same way as the prompt, so a hyphenated keyword
-    like "c-type" splits to {c, type} and still matches "C-type" in a question.
+    Returns a list (preserving multiplicity for TF calculation).
     """
-    haystack = tokens(" ".join(fact.get("keywords", []))) | tokens(fact.get("text", ""))
-    return len(prompt_tokens & haystack)
+    return [w for w in _WORD.findall(text.lower()) if w not in _STOPWORDS]
+
+
+def _compute_idfs(facts: list[dict]) -> dict:
+    """Compute IDF (inverse document frequency) for all terms in the corpus.
+
+    IDF(term) = log(N / df) where N is total facts and df is count of facts
+    containing the term. This weights rare, discriminative terms highly.
+    """
+    num_facts = len(facts)
+    if num_facts == 0:
+        return {}
+
+    # Count how many facts contain each term
+    doc_freq = Counter()
+    for fact in facts:
+        fact_text = " ".join(fact.get("keywords", [])) + " " + fact.get("text", "")
+        fact_terms = set(tokens(fact_text))  # Use set to count each term once per fact
+        doc_freq.update(fact_terms)
+
+    # Compute IDF: log(N / df), avoiding division by zero
+    idfs = {}
+    for term, df in doc_freq.items():
+        if df > 0:
+            idfs[term] = math.log(num_facts / df)
+    return idfs
+
+
+def _tfidf_vector(term_list: list[str], idfs: dict) -> dict:
+    """Compute TF-IDF vector: {term: tf * idf} for all terms.
+
+    TF (term frequency) = count(term) / total_terms.
+    TF-IDF = TF * IDF.
+    Returns a dict mapping term -> score, excluding terms not in idfs.
+    """
+    if not term_list:
+        return {}
+
+    tf = Counter(term_list)
+    total = len(term_list)
+
+    vector = {}
+    for term, count in tf.items():
+        if term in idfs:
+            vector[term] = (count / total) * idfs[term]
+    return vector
+
+
+def _cosine_similarity(vec_a: dict, vec_b: dict) -> float:
+    """Cosine similarity between two TF-IDF vectors (dicts).
+
+    similarity = dot(A, B) / (|A| * |B|)
+    Returns 0 if either vector is empty or both are zero-vectors.
+    """
+    # Dot product
+    dot_product = sum(vec_a.get(term, 0) * vec_b.get(term, 0)
+                      for term in set(vec_a.keys()) | set(vec_b.keys()))
+
+    # Magnitudes
+    mag_a = math.sqrt(sum(v ** 2 for v in vec_a.values()))
+    mag_b = math.sqrt(sum(v ** 2 for v in vec_b.values()))
+
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+
+    return dot_product / (mag_a * mag_b)
 
 
 def retrieve(prompt: str, facts: list[dict], k: int = TOP_K) -> list[dict]:
-    """Return the top-k facts whose keywords best overlap the prompt."""
-    pt = tokens(prompt)
-    # Score every fact once, keep the ones that matched, best-first, take k.
-    scored = [(score(pt, f), f) for f in facts]
-    hits = [f for s, f in sorted(scored, key=lambda sf: sf[0], reverse=True) if s > 0]
+    """Return the top-k facts by TF-IDF cosine similarity to the prompt.
+
+    Uses term frequency-inverse document frequency (TF-IDF) to score facts:
+    rare, discriminative terms in the prompt are weighted more heavily,
+    avoiding the naive keyword-overlap problem where common words in
+    multiple facts create spurious matches.
+    """
+    # Tokenize prompt
+    prompt_terms = tokens(prompt)
+
+    # If prompt has no content terms, return nothing (fail-open)
+    if not prompt_terms:
+        return []
+
+    # Build IDF table across all facts
+    idfs = _compute_idfs(facts)
+
+    # TF-IDF vector for the query
+    query_vector = _tfidf_vector(prompt_terms, idfs)
+
+    # If query vector is empty (no overlap with corpus terms), return nothing
+    if not query_vector:
+        return []
+
+    # Score each fact by cosine similarity
+    scored = []
+    for fact in facts:
+        fact_text = " ".join(fact.get("keywords", [])) + " " + fact.get("text", "")
+        fact_terms = tokens(fact_text)
+        fact_vector = _tfidf_vector(fact_terms, idfs)
+
+        sim = _cosine_similarity(query_vector, fact_vector)
+        if sim > 0:
+            scored.append((sim, fact))
+
+    # Sort by similarity (highest first) and return top-k
+    hits = [f for s, f in sorted(scored, key=lambda sf: sf[0], reverse=True)]
     return hits[:k]
 
 
