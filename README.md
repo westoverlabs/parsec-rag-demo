@@ -286,6 +286,118 @@ identically. We've run the full interactive demo on both `llama3.2` locally and
 
 Already have the tools? `opencode --agent astro` is the whole command.
 
+### The Script
+
+Stage directions for the live demo. **TYPE** = paste into the TUI. **DO** = run in
+a second terminal you keep on screen, so the audience sees the cause. Roughly six
+minutes at a talking pace.
+
+> **Before a room, consider running with `--cloud`.** `llama3.2` is fast but
+> misses a tool call roughly one prompt in five, printing JSON instead of acting.
+> It's harmless — ask again — but `./start_tui_demo.sh --cloud` is steadier and
+> still free. Measured numbers are in 5d.
+
+Everything below is explained in detail in 5a–5c; this section is the part you
+actually perform.
+
+> **Act 0 — start clean**
+>
+> 1. **DO** — `./reset_demo.sh`
+
+> **Act 1 — the grounded baseline**
+>
+> 2. **TYPE** — `What causes the Kirkwood gaps?`
+>
+> *Expect: mean-motion resonances with Jupiter, the 3:1 at ~2.50 AU. Precise, and
+> the same every time you ask.*
+
+> **Act 2 — turn grounding off, mid-conversation**
+>
+> 3. **DO** — `touch .rag_off`
+> 4. **TYPE** — `What causes the Kirkwood gaps?`
+> 5. **TYPE** — `What causes the Kirkwood gaps?`  *(yes, ask it twice)*
+> 6. **DO** — `rm .rag_off`
+> 7. **TYPE** — `What causes the Kirkwood gaps?`
+>
+> *Nothing restarted. Steps 4 and 5 are a lottery — often wrong, and usually
+> wrong in a **different way** each time. Asking twice is the point. Step 7 brings
+> the precision back.*
+
+> **Act 3 — edit the knowledge base while it's running**
+>
+> 8. **TYPE** — `Use kg_fact to add a fact with topic 3200 Phaethon and text: 3200 Phaethon is a B-type near-Earth asteroid and the parent body of the Geminid meteor shower.`
+> 9. **TYPE** — `Tell me about the parent body of the Geminids.`
+>
+> *The new fact is retrievable on the very next question. No reindex, no restart.*
+>
+> *`llama3.2` lands this tool call about **3 times in 4** (measured). If it prints
+> a blob of JSON instead of acting, it didn't really call the tool — just ask
+> again. Cloud models don't have this problem.*
+
+> **Act 4 — poison it (the payload)**
+>
+> 10. **DO** — `./poison_kb.sh`
+> 11. **TYPE** — `What causes the Kirkwood gaps?`
+>
+> *Unphysical nonsense, repeated with total confidence — in the same calm register
+> as the true answer. This is the moment the talk is for. See 5c.*
+>
+> *`poison_kb.sh` swaps the true Kirkwood fact for the magnetic-field falsehood and
+> prints the before/after. It's a terminal action rather than a prompt on purpose:
+> see the note below.*
+
+> **Act 5 — reset, and show the truth comes back**
+>
+> 12. **DO** — `./reset_demo.sh`
+> 13. **TYPE** — `What causes the Kirkwood gaps?`
+>
+> *Resonances again — which also proves the reset did its job.*
+
+**Always run `./reset_demo.sh` before handing the laptop on.** It restores
+`astro_kg.json` from git (scoped to that one file), clears `.rag_off`, and prints
+what it changed. It's safe to run when nothing is dirty.
+
+> **Why Act 4 is a script and Act 3 is a prompt.** Step 8 asks the agent to *add* a
+> fact and that works reliably. Asking it to *edit* the Kirkwood fact with a long
+> verbatim sentence does not: testing `llama3.2` on exactly that prompt, one run
+> truncated the text at the apostrophe in "Jupiter's" (leaving the KB saying
+> *"swept clear by Jupiter"* — vague, not false, punchline gone) and the next
+> emitted malformed JSON so no edit happened at all. Both failures are silent.
+> `poison_kb.sh` makes the most important beat of the demo deterministic. It's
+> also better theatre: the room watches *you* change the source of truth, then
+> watches the model believe you. On a stronger model (`gpt-oss:20b-cloud`) the
+> prompt-driven edit does work, if you'd rather show that.
+
+### Rehearsing it
+
+To push the whole sequence through without typing it:
+
+```bash
+./rehearse.sh
+```
+
+That runs the identical script via `opencode run "<prompt>"` — one call per
+prompt, interleaving the same `touch`/`rm`/reset actions — and prints each prompt
+with the answer it produced. It resets at the start and at the end, and fails
+loudly if the repo isn't clean afterward.
+
+```bash
+./rehearse.sh --list
+```
+
+prints the script without running anything, which is a handy cue card.
+
+**`rehearse.sh` is not the demo.** Give the talk from the real TUI — an audience
+should watch a live session, not a shell script scrolling past. This is the
+regression tool: run it before a talk to confirm the flow still behaves.
+
+> **Why separate one-shot runs work.** Every step's state lives in the
+> **filesystem** — the contents of `astro_kg.json` and whether `.rag_off` exists —
+> not in conversation memory. Each `opencode run` is a fresh session with no
+> history, and that's fine: the MCP server re-reads both on every tool call. We
+> verified this rather than assumed it. Step 9 retrieves the fact added in step 8,
+> and step 11 repeats the lie planted in step 10, *across separate sessions*.
+
 ### How this differs from the hook — and why that's the interesting part
 
 OpenCode has **no `UserPromptSubmit` hook**. It integrates through **MCP** (Model
@@ -375,15 +487,20 @@ Edits are written atomically and preserve the file's hand-written formatting, so
 Everything so far shows grounding making a model *better*. Now break it — this is
 the most useful sixty seconds of the demo.
 
-**Poison the knowledge base.** In the TUI:
+**Poison the knowledge base.** In your second terminal:
 
-> *"Use kg_fact to edit the fact with topic 'Kirkwood gaps'. Set its text to
-> exactly: The Kirkwood gaps are swept clear by Jupiter's magnetic field, which
+```bash
+./poison_kb.sh
+```
+
+That replaces the true Kirkwood gaps fact with:
+
+> *"The Kirkwood gaps are swept clear by the magnetic field of Jupiter, which
 > repels the iron-rich asteroids in those zones and herds them into the Trojan
 > swarms."*
 
-That sentence is unphysical nonsense — and it sounds perfectly reasonable to
-anyone who isn't an astronomer. Now ask:
+Unphysical nonsense — and it sounds perfectly reasonable to anyone who isn't an
+astronomer. Nothing restarts; the next retrieval picks it up. Now ask, in the TUI:
 
 > *"What causes the Kirkwood gaps?"*
 
@@ -435,8 +552,13 @@ and in the same voice as the truth.
 Put it back:
 
 ```bash
-git checkout astro_kg.json
+./reset_demo.sh
 ```
+
+That restores `astro_kg.json` from git, clears the `.rag_off` flag, sweeps any
+temp files, and tells you what it changed. Ask the question once more afterwards —
+the resonances come back, which proves the reset actually worked. Run it before
+handing the laptop to the next person; it's safe to run when nothing is dirty.
 
 ### 5d. Honest limitations you should know before demoing
 
@@ -451,9 +573,25 @@ git checkout astro_kg.json
 - **The model chooses whether to call the tool.** Usually it does; occasionally a
   small model answers without it. The `astro` agent's system prompt pushes hard on
   calling `search_astro_kb` first. The hook path in step 4 has no such gap.
-- **`llama3.2` is a 3B model in an agent loop, and it is visibly flaky.** In our
-  testing it sometimes printed a malformed tool call as plain text and returned
-  no answer at all. If that happens live, just ask again — it usually recovers.
+- **`llama3.2` is a 3B model in an agent loop, and it is visibly flaky at tool
+  calls.** Measured on this host:
+
+  | Model | Simple question | Add-a-fact prompt |
+  |---|---|---|
+  | `llama3.2` (local) | 5/6 | 3/4 |
+  | `gpt-oss:20b-cloud` | 6/6 | reliable in all runs |
+
+  When it misses, it prints the tool-call JSON as plain text and nothing happens —
+  we've seen `astro-kg_search_ astro_kb` with a stray space, a string truncated at
+  the apostrophe in "Jupiter's", and a turn that returned no answer at all. **All
+  of these fail silently.** That's why Act 4 — the one beat you can't afford to
+  lose — is a script (`poison_kb.sh`) rather than a prompt. If a prompt-driven step
+  misfires live, just ask again; it usually lands the second time.
+
+  **For a room, consider `./start_tui_demo.sh --cloud`.** Same demo, same free
+  tier, materially steadier tool calling. Note this only affects Step 5's agent
+  loop — Step 1's `demo.py` makes no tool calls at all and is rock solid on
+  `llama3.2`.
   If you want a steadier agent, `gpt-oss:20b-cloud` on the free tier handled the
   same tool calls cleanly every time we tried. The `astro` agent also has file,
   shell and edit tools **disabled** — it can only touch the knowledge base — which
@@ -496,6 +634,9 @@ these two detections be the same object?"* — instead of on hand-managing conte
 | `astro_kg.json` | The knowledge base — asteroid families, orbital elements, LSST facts. Edit freely, by hand or through `kg_fact`. |
 | `astro_mcp.py` | MCP server for the interactive demo: `search_astro_kb`, `toggle_rag`, `kg_fact`. Stdlib-only JSON-RPC over stdio. `--selftest` checks it without opening a session. |
 | `start_tui_demo.sh` | One-command bootstrap: Ollama, model, OpenCode, MCP check, then launches the agent. `--check` sets up without launching. |
+| `rehearse.sh` | Pushes the whole Step 5 script through non-interactively via `opencode run`, for rehearsal and regression. `--list` prints the script as a cue card. |
+| `reset_demo.sh` | Puts the repo back: restores `astro_kg.json`, clears `.rag_off`, sweeps temp files. Safe to run any time. |
+| `poison_kb.sh` | Act 4: swaps the true Kirkwood fact for a plausible falsehood. Undo with `reset_demo.sh`. |
 | `opencode.json` | Registers the Ollama provider, the MCP server, and the tool-restricted `astro` agent. Works on clone. |
 | `ask_ollama.py` | Thin alias that forwards to `demo.py`, so older instructions keep working. |
 | `.claude/settings.json` | Ready-made Claude Code hook registration (works on clone). |
