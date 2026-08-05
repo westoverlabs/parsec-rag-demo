@@ -81,7 +81,9 @@ An older or smaller machine may pull `llama3.2` and then grind. Ollama has a
 not a workaround:
 
 ```bash
-ollama signin                    # opens a browser tab; sign up or log in
+# opens a browser tab; sign up or log in
+ollama signin
+
 python3 demo.py --model gpt-oss:20b-cloud "Why do we use proper elements to find asteroid families?"
 ```
 
@@ -108,7 +110,9 @@ all once pulled. Cloud is the escape hatch when the hardware isn't cooperating.
 python3 demo.py "What is the Vesta family and where do the HED meteorites come from?"
 python3 demo.py "How many asteroids will LSST discover, and how big is the alert stream?"
 python3 demo.py "How do you link single-night detections into an orbit?"
-python3 demo.py "recommend a good pizza recipe"   # off-topic -> injects nothing
+
+# off-topic -> injects nothing
+python3 demo.py "recommend a good pizza recipe"
 ```
 
 That last one matters: nothing in the KG matches, so the hook stays silent and
@@ -117,11 +121,26 @@ something to add is grounding you can leave switched on.
 
 ### Options
 
+These are alternatives, not a sequence — run ONE at a time, not the whole block.
+
 ```bash
-python3 demo.py --offline "..."          # no model; show what gets injected
-python3 demo.py --grounded-only "..."    # skip the ungrounded call (faster)
-python3 demo.py --model qwen3.5:2b "..." # any model you've pulled
-python3 demo.py --host http://192.168.1.100:11434 "..."   # Ollama elsewhere
+# no model; show what gets injected
+python3 demo.py --offline "..."
+```
+
+```bash
+# skip the ungrounded call (faster)
+python3 demo.py --grounded-only "..."
+```
+
+```bash
+# any model you've pulled
+python3 demo.py --model qwen3.5:2b "..."
+```
+
+```bash
+# Ollama running elsewhere on your network
+python3 demo.py --host http://192.168.1.100:11434 "..."
 ```
 
 `OLLAMA_MODEL` and `OLLAMA_HOST` work too. A tagged name like `qwen3.5:2b` is
@@ -237,10 +256,25 @@ It checks for Ollama, starts the server, pulls the model, installs OpenCode if
 missing, self-tests the MCP server, and drops you into the agent. It only installs
 what's absent and tells you before it does.
 
+These are alternatives, not a sequence — run ONE at a time, not the whole block.
+
 ```bash
-./start_tui_demo.sh              # local model (default)
-./start_tui_demo.sh --cloud      # Ollama Cloud free tier instead
-./start_tui_demo.sh --check      # set up and verify, don't launch
+# local model (default)
+./start_tui_demo.sh
+```
+
+```bash
+# Ollama Cloud free tier instead
+./start_tui_demo.sh --cloud
+```
+
+```bash
+# set up and verify, don't launch
+./start_tui_demo.sh --check
+```
+
+```bash
+# pick a specific model
 MODEL=qwen3.5:2b ./start_tui_demo.sh
 ```
 
@@ -286,9 +320,16 @@ Grounding is ON unless a file called `.rag_off` exists. The flag is re-read on
 **every single retrieval call**, so you can flip it from a second terminal without
 restarting OpenCode or the MCP server:
 
+Turn grounding OFF:
+
 ```bash
-touch .rag_off    # grounding OFF
-rm .rag_off       # grounding ON
+touch .rag_off
+```
+
+Turn grounding back ON:
+
+```bash
+rm .rag_off
 ```
 
 Keep that second terminal on screen. The demo:
