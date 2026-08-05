@@ -37,7 +37,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
     --list)  LIST_ONLY=1; shift ;;
-    -h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # Header comment block, stopping at the first line of real code.
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "Unknown option: $1 (try --help)" >&2; exit 1 ;;
   esac
 done

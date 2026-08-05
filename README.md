@@ -198,6 +198,42 @@ get between you and your question.
 Now make it invisible. Everything above was a harness to *show* you the effect;
 in a real agent the grounding just happens.
 
+### It greets you when you arrive
+
+Both Claude Code and Codex also fire a **`SessionStart`** hook when a session
+begins. This repo uses it ([`session_greeting.py`](./session_greeting.py)) to
+welcome you and say what to try first — so cloning the repo and typing `claude`
+doesn't leave you at a blank prompt guessing.
+
+It's the same one-file-two-tools trick as the grounding hook: identical script,
+identical `hookSpecificOutput.additionalContext` shape, only the registration
+file differs.
+
+**What each tool actually does with it** — tested, because the two differ:
+
+| | Claude Code | Codex |
+|---|---|---|
+| Banner visible before you type | **Yes** — at boot, as `SessionStart:startup says:` | No — it appears with your first turn |
+| Assistant's first reply is oriented | Yes | Yes |
+| Assistant speaks *unprompted* | **No** | **No** |
+
+That last row is the honest limit, and it's worth understanding. A `SessionStart`
+hook can put text on your screen (via the `systemMessage` field) and can brief the
+model (via `additionalContext`), but **neither tool has the assistant volunteer a
+message into an empty session** — models respond, they don't initiate. So the
+welcome you see at boot is a system banner, and the *assistant's* greeting arrives
+on your first message, whatever that message is. Typing `hi` gets you the full
+orientation.
+
+> **First time in a session-based terminal tool?** Worth knowing regardless of the
+> greeting: this is a running conversation, not a one-shot command. Type a
+> question, press Enter, keep going — context carries between messages. Answers
+> stream in a piece at a time. A tool call may appear mid-answer; that's the
+> grounding hook fetching facts, not an error. `Ctrl-C` or `/exit` to leave.
+
+Both tools also ask you to approve the folder (and, in Codex, the hooks) the first
+time. Say yes, or nothing runs.
+
 ### Claude Code
 
 This repo ships [`.claude/settings.json`](./.claude/settings.json) with the hook
@@ -368,6 +404,33 @@ what it changed. It's safe to run when nothing is dirty.
 > watches the model believe you. On a stronger model (`gpt-oss:20b-cloud`) the
 > prompt-driven edit does work, if you'd rather show that.
 
+### The short version, colour-coded, for the stage
+
+If you'd rather drive the argument from one script than type into a TUI — or you
+have five minutes rather than fifteen — `stage_script.sh` runs the four beats that
+carry the whole point, each behind its own coloured banner so the room can see
+which beat they're in:
+
+```bash
+./stage_script.sh
+```
+
+| Beat | Colour | What happens |
+|---|---|---|
+| 1 — Grounded, true | green | Two real questions, answered from the knowledge base |
+| 2 — Poisoning the source of truth | yellow | `poison_kb.sh` swaps one true fact for a plausible lie |
+| 3 — Same question, poisoned KB | red | It repeats the lie, confidently |
+| 4 — Reset | blue | `reset_demo.sh`, then ask again — the truth returns |
+
+It pauses before each beat so you can talk over it; press Enter to fire the next
+one. `--no-pause` runs it straight through, which doubles as an end-to-end check.
+Colour is switched off automatically when output isn't a terminal, so piping it to
+a file gives clean text rather than escape-code soup.
+
+This is the *short* version. `rehearse.sh` below runs the fuller 13-step script
+including the `.rag_off` toggle and the live add-a-fact. Both call the same
+`poison_kb.sh` and `reset_demo.sh`, so the two can't drift apart.
+
 ### Rehearsing it
 
 To push the whole sequence through without typing it:
@@ -400,17 +463,20 @@ regression tool: run it before a talk to confirm the flow still behaves.
 
 ### How this differs from the hook — and why that's the interesting part
 
-OpenCode has **no `UserPromptSubmit` hook**. It integrates through **MCP** (Model
-Context Protocol), so grounding can't be silently injected the way steps 3 and 4
-do it. Instead, [`astro_mcp.py`](./astro_mcp.py) serves the *same* `astro_kg.json`
-through the *same* `retrieve()` and `build_context()` functions as a **tool the
-model calls**. That's a genuinely different shape, and it's worth saying out loud:
+OpenCode has **no hook system at all** — no `UserPromptSubmit`, and no
+`SessionStart` either. Its config schema has no hooks key; extension happens
+through MCP servers and npm plugins. So grounding can't be silently injected the
+way steps 3 and 4 do it. Instead, [`astro_mcp.py`](./astro_mcp.py) serves the
+*same* `astro_kg.json` through the *same* `retrieve()` and `build_context()`
+functions as a **tool the model calls**. That's a genuinely different shape, and
+it's worth saying out loud:
 
 |  | Hook (Claude Code, Codex) | MCP tool (OpenCode) |
 |---|---|---|
 | When it fires | Automatically, every prompt | When the model decides to call it |
 | Can the model skip it? | No | Yes |
 | Can you watch it happen? | No — it's invisible | Yes — you see the tool call |
+| Greets you at session start | Yes — `SessionStart` hook | No — banner printed by `start_tui_demo.sh` instead |
 
 Neither is better. The hook guarantees grounding; the tool makes grounding
 *observable*, which is exactly what you want on a projector. You'll see a line
@@ -634,6 +700,8 @@ these two detections be the same object?"* — instead of on hand-managing conte
 | `astro_kg.json` | The knowledge base — asteroid families, orbital elements, LSST facts. Edit freely, by hand or through `kg_fact`. |
 | `astro_mcp.py` | MCP server for the interactive demo: `search_astro_kb`, `toggle_rag`, `kg_fact`. Stdlib-only JSON-RPC over stdio. `--selftest` checks it without opening a session. |
 | `start_tui_demo.sh` | One-command bootstrap: Ollama, model, OpenCode, MCP check, then launches the agent. `--check` sets up without launching. |
+| `session_greeting.py` | `SessionStart` hook — welcomes you and points at Step 1. One file, works in both Claude Code and Codex. |
+| `stage_script.sh` | The four-beat stage version, colour-coded per beat, pausing between them. `--no-pause` for a straight run. |
 | `rehearse.sh` | Pushes the whole Step 5 script through non-interactively via `opencode run`, for rehearsal and regression. `--list` prints the script as a cue card. |
 | `reset_demo.sh` | Puts the repo back: restores `astro_kg.json`, clears `.rag_off`, sweeps temp files. Safe to run any time. |
 | `poison_kb.sh` | Act 4: swaps the true Kirkwood fact for a plausible falsehood. Undo with `reset_demo.sh`. |
