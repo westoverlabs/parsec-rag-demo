@@ -221,18 +221,16 @@ of context by hand.
 
 ## Using this with OpenCode (TUI agent)
 
-**OpenCode** is a TUI AI agent that works great with local models. This repo ships a
-project-local config (`.opencode/opencode.jsonc`) ready for the demo — no setup needed
-beyond what you did for `ask_ollama.py`.
+**OpenCode** is a TUI AI agent that works great with local models. It needs a one-time
+install (below); the repo's `.opencode/opencode.jsonc` is just a project marker and does
+not configure a provider — your Ollama provider comes from your global OpenCode settings
+(`~/.config/opencode/opencode.jsonc`) or the `--model ollama/...` flag.
 
 **Best approach for tonight's talk:**
 
-1. **Prove grounding works** with `ask_ollama.py` (see the before/after side-by-side).
-2. **Drop into the TUI** with OpenCode pointed at the same local Ollama instance.
-
-The grounding proof is the payload; the TUI session lets attendees experience a real agent
-interacting with grounded facts. Both use the same model and same local backend — no cloud,
-no API keys.
+1. **Prove grounding works** with `ask_ollama.py` (the before/after side-by-side).
+2. **Drop into the TUI** on the same local Ollama backend — ungrounded, but it's the
+   experience layer; the grounding proof already landed in step 1.
 
 ### Quick start with OpenCode
 
