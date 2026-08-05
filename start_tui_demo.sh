@@ -233,10 +233,13 @@ fi
 WHERE="local, via Ollama"
 [ "$USE_CLOUD" = "1" ] && WHERE="Ollama Cloud, free tier"
 
-# OpenCode has no SessionStart hook (no hook system at all -- see the README),
-# so the greeting that Claude Code and Codex get from session_greeting.py has to
-# be printed here instead. Not the model speaking first, but the same orientation
-# at the same moment, which is what actually matters to a newcomer.
+# The greeting Claude Code and Codex get from session_greeting.py has to be
+# printed here instead. OpenCode has no config-declared hooks; it does have a
+# plugin API, but its session.created event does not fire until the user submits
+# a first message -- too late to greet anyone -- and neither console.log (which
+# corrupts the TUI) nor tui.showToast() (which never rendered) can put text on
+# screen beforehand. Tested; see the README. Not the model speaking first, but
+# the same orientation at the same moment, which is what matters to a newcomer.
 say "Welcome to the PARSEC RAG demo"
 cat <<'EOF'
     You are about to drop into a conversation with a small AI model running

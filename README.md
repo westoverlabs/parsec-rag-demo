@@ -463,13 +463,16 @@ regression tool: run it before a talk to confirm the flow still behaves.
 
 ### How this differs from the hook — and why that's the interesting part
 
-OpenCode has **no hook system at all** — no `UserPromptSubmit`, and no
-`SessionStart` either. Its config schema has no hooks key; extension happens
-through MCP servers and npm plugins. So grounding can't be silently injected the
-way steps 3 and 4 do it. Instead, [`astro_mcp.py`](./astro_mcp.py) serves the
-*same* `astro_kg.json` through the *same* `retrieve()` and `build_context()`
-functions as a **tool the model calls**. That's a genuinely different shape, and
-it's worth saying out loud:
+OpenCode has **no config-declared hooks** — nothing you can add to `opencode.json`
+the way `.claude/settings.json` and `.codex/hooks.json` declare theirs. What it
+*does* have is a **code-based plugin API**: drop a TypeScript file in
+`.opencode/plugin/` and it receives real lifecycle events, including
+`session.created` and `chat.message`.
+
+So grounding here could go either way, and we chose deliberately.
+[`astro_mcp.py`](./astro_mcp.py) serves the *same* `astro_kg.json` through the
+*same* `retrieve()` and `build_context()` functions as a **tool the model calls**.
+That's a genuinely different shape from the hooks, and it's worth saying out loud:
 
 |  | Hook (Claude Code, Codex) | MCP tool (OpenCode) |
 |---|---|---|
@@ -477,6 +480,52 @@ it's worth saying out loud:
 | Can the model skip it? | No | Yes |
 | Can you watch it happen? | No — it's invisible | Yes — you see the tool call |
 | Greets you at session start | Yes — `SessionStart` hook | No — banner printed by `start_tui_demo.sh` instead |
+
+#### Why we didn't use the plugin API — measured, not assumed
+
+The plugin API looks on paper like it should give OpenCode full parity: a
+`session.created` handler for the greeting and a `chat.message` handler for silent
+grounding, both a few lines. We built both and ran them. Neither earns its place.
+
+First, the good news: **plugins need no extra tooling.** A `.ts` file in
+`.opencode/plugin/` loads and runs with nothing installed beyond OpenCode itself —
+no Bun, no Node, no TypeScript compiler. That part is genuinely free.
+
+**On the greeting — `session.created` cannot deliver one.** Three findings, each
+verified on this host:
+
+- **It doesn't fire at launch.** In the TUI, a session isn't created until you
+  submit your first message. Timestamps from a file-logging probe: plugin init at
+  `16:05:01`, `session.created` at `16:05:30` — the moment the first prompt was
+  sent, 29 seconds later. A greeting that waits until after you've typed has
+  already missed its job.
+- **`console.log` corrupts the TUI.** The obvious one-liner writes to stdout,
+  which is the TUI's own rendering channel. The screen fills with interleaved
+  garbage (`PROBEPROBE_EVENT:message.updateddated`) and the interface is unusable.
+  The naive version of this feature actively breaks the demo.
+- **`tui.showToast()` exists and returns success, but never rendered.** Twenty
+  toasts fired at one-second intervals, twenty-five rapid screen captures, not one
+  visible. (OpenCode 1.18.13.)
+
+So the terminal banner in `start_tui_demo.sh` stays. It is the only mechanism that
+greets you *before* you interact, which is the whole point.
+
+**On grounding — `chat.message` works, and would make the demo worse.** It fires
+with a mutable prompt, and prepending retrieved facts genuinely works (349
+characters injected, confirmed). But when we ran it:
+
+- **It double-grounds.** The model received the injected facts *and* still called
+  `search_astro_kb`. Same facts, twice.
+- **It degraded the agent loop.** In the same run the model wandered into an
+  unrelated skill and made a spurious `kg_fact` call.
+- **It would delete the best thing about this path.** The visible
+  `⚙ astro-kg_search_astro_kb {…}` is the reason the table above calls the MCP
+  route *observable*. Silent injection hides exactly what an audience came to see,
+  to reproduce something Claude Code and Codex already do properly.
+
+Making it a true replacement would mean disabling the MCP tool to stop the
+double-grounding — trading a working, watchable mechanism for an invisible one. So
+we left it out. **The mechanism exists; using it here would be strictly worse.**
 
 Neither is better. The hook guarantees grounding; the tool makes grounding
 *observable*, which is exactly what you want on a projector. You'll see a line
