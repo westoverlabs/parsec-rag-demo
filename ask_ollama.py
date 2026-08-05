@@ -96,9 +96,19 @@ def main() -> None:
         else:
             print("(no matching facts — grounding stays silent; this answer equals the ungrounded one)\n")
         print(ask(grounded_prompt))
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, TimeoutError) as e:
+        # URLError: network/connection issues. TimeoutError: model too slow (especially with thinking modes).
+        # If it's an HTTP error with a response body, try to surface it (e.g., "model not found, try: ollama pull ...").
+        error_detail = str(e.reason) if isinstance(e, urllib.error.URLError) else "Model response timeout"
+        if isinstance(e, urllib.error.URLError) and hasattr(e, "fp") and e.fp:
+            try:
+                body = e.fp.read().decode("utf-8", errors="ignore")
+                if body:
+                    error_detail += f"\n{body}"
+            except Exception:
+                pass
         sys.exit(
-            f"\nCould not reach Ollama at {HOST} ({e.reason}).\n"
+            f"\nCould not reach Ollama at {HOST} ({error_detail}).\n"
             f"Is it running? Start it with `ollama serve`, and make sure you've\n"
             f"pulled the model:  ollama pull {MODEL}\n"
         )

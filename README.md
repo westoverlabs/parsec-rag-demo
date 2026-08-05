@@ -162,7 +162,7 @@ flounders; grounded, it nails it.
    ```bash
    ollama pull llama3.2   # ~2 GB; very capable for its size
    ```
-   Or use any model already on your system — `qwen3.5:2b` (~2.7 GB), `gemma4:7b`, etc.
+   Or use any model already on your system — `qwen3.5:2b` (~2.7 GB), `qwen2.5:7b`, `gemma4:12b-it-qat`, etc. (try `ollama list` to see what you have locally)
 
 3. **Run the grounded question**:
    ```bash
@@ -236,46 +236,30 @@ no API keys.
 
 ### Quick start with OpenCode
 
-```bash
-# From inside your clone of this repo:
-cd lsst-hook-rag-demo
+1. **Install OpenCode** (if you don't have it):
+   ```bash
+   npm install -g opencode-ai
+   ```
 
-# Start OpenCode (pointed at local Ollama via .opencode/opencode.jsonc):
-opencode
+2. **Prove grounding works first** (see ask_ollama.py section above — run it once to show the before/after difference).
 
-# Or run a one-shot grounded question:
-opencode run "Why do we use proper elements to find asteroid families?"
-```
+3. **Then start the TUI agent** pointed at your local Ollama instance:
+   ```bash
+   cd lsst-hook-rag-demo
+   opencode run "Why do we use proper elements to find asteroid families?" --model ollama/qwen2.5:7b
+   ```
+   Or for an interactive session:
+   ```bash
+   opencode --model ollama/qwen2.5:7b
+   ```
 
-The project-local `.opencode/opencode.jsonc` config is minimal and project-focused — it
-prepares the environment but lets OpenCode's interactive interface be the show. If you
-need to specify a particular model or Ollama host, pass `--model ollama/qwen2.5:7b` or
-set it in the config before starting.
+Replace `qwen2.5:7b` with whatever model you pulled earlier (e.g., `llama3.2`). OpenCode will talk to your local Ollama on `localhost:11434` — no cloud, no API keys.
 
-### Project config (`.opencode/opencode.jsonc`)
+### Why not automatic RAG grounding in OpenCode?
 
-The repo ships an empty project config that signals "I'm an OpenCode project" to your IDE.
-The actual model provider is configured in your global OpenCode settings
-(`~/.config/opencode/opencode.jsonc`) — just make sure Ollama is listed as a provider and
-you're good. If you want to auto-select a model for this project, add:
+Unlike Claude Code and Codex, OpenCode doesn't have a `UserPromptSubmit`-style hook that fires on every prompt. OpenCode uses MCP (Model Context Protocol) for integrations, which would require a custom server to inject facts on-the-fly — overkill for a talk demo.
 
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json"
-  // Future: model defaults here if OpenCode adds per-project defaults
-}
-```
-
-### No direct hook integration (honest assessment)
-
-Unlike Claude Code and Codex, OpenCode does NOT have a `UserPromptSubmit`-style hook
-that can automatically inject grounding. OpenCode uses MCP (Model Context Protocol) for
-tool/integration support, but RAG-on-every-prompt would need a custom MCP server (more
-plumbing than a talk demo warrants).
-
-**Instead:** The honest approach that works is `ask_ollama.py` (proven above) +
-OpenCode TUI session on the same backend. You've already shown grounding changes answers;
-the TUI is the experience layer.
+**The honest, working path:** `ask_ollama.py` proves RAG makes a difference (side-by-side answers). Then OpenCode TUI lets attendees interact with a grounded agent on the *same* Ollama backend. The grounding effect is already proven; the TUI is the experience layer.
 
 ---
 
