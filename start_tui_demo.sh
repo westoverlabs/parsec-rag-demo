@@ -237,15 +237,30 @@ cat <<EOF
     Model:    $MODEL  ($WHERE)
     Agent:    astro   (grounded by astro_kg.json through MCP)
 
-    Try, in order:
-      1.  What causes the Kirkwood gaps?
-      2.  (in a second terminal)  touch .rag_off
-      3.  ask the same question again  -- now ungrounded
-      4.  (second terminal)  rm .rag_off
-      5.  Add a fact about 3200 Phaethon and the Geminids, then ask about it.
+    The script (full version + narration in the README, "The Script"):
+      1.  ASK   What causes the Kirkwood gaps?
+      2.  DO    touch .rag_off        (in a second terminal)
+      3.  ASK   the same question, twice -- watch it wander
+      4.  DO    rm .rag_off
+      5.  ASK   again -- precision returns
+      6.  ASK   Use kg_fact to add a fact with topic 3200 Phaethon and text: ...
+      7.  DO    ./poison_kb.sh        (the payload)
+      8.  ASK   What causes the Kirkwood gaps?   -- now it lies, confidently
+      9.  DO    ./reset_demo.sh       (always, before handing this on)
+
+    Rehearse the whole thing non-interactively:  ./rehearse.sh
+    Print it as a cue card:                      ./rehearse.sh --list
 
     Ctrl-C or /exit to quit.
 EOF
+
+if [ "$USE_CLOUD" != "1" ] && [ "$MODEL" = "llama3.2" ]; then
+  cat <<'EOF'
+    NOTE: llama3.2 is fast but flaky at TOOL CALLS -- roughly one prompt in four
+    it prints a blob of JSON instead of actually calling the tool. Just ask
+    again. For a steadier room, re-run with:  ./start_tui_demo.sh --cloud
+EOF
+fi
 sleep 2
 # Pass the model explicitly: the `astro` agent in opencode.json pins a default,
 # and MODEL= / --cloud must be able to override it.

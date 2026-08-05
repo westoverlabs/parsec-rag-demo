@@ -127,6 +127,32 @@ def rag_enabled() -> bool:
     return not FLAG_PATH.exists()
 
 
+def normalize_keywords(value: object) -> list[str]:
+    """Coerce whatever the model sent into a list of keyword strings.
+
+    The schema asks for an array, but small local models routinely send a JSON
+    array encoded as a STRING ('["phaethon", "geminids"]') or a plain
+    comma-separated string ('phaethon, geminids'). Silently ignoring those means
+    the fact goes in with no keywords and quietly fails to retrieve later --
+    exactly the kind of silent failure this demo is about. So we accept them.
+    """
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        if text.startswith("["):
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, list):
+                    return [str(v).strip() for v in parsed if str(v).strip()]
+            except json.JSONDecodeError:
+                pass  # fall through to comma splitting
+        return [part.strip() for part in text.split(",") if part.strip()]
+    return []
+
+
 def find_fact(facts: list[dict], topic: str) -> int:
     """Locate a fact by topic: exact (case-insensitive) first, then substring."""
     needle = topic.strip().lower()
@@ -262,11 +288,11 @@ def tool_kg_fact(args: dict) -> str:
         text = (args.get("text") or "").strip()
         if not text:
             return "op='add' needs the fact text."
-        keywords = args.get("keywords") or []
-        if not isinstance(keywords, list) or not keywords:
+        keywords = normalize_keywords(args.get("keywords"))
+        if not keywords:
             # Fall back to the topic's own words so the fact is at least findable.
             keywords = topic.lower().split()
-        facts.append({"topic": topic, "keywords": [str(k) for k in keywords], "text": text})
+        facts.append({"topic": topic, "keywords": keywords, "text": text})
         save_facts(facts)
         log(f"added fact: {topic}")
         return f"Added '{topic}'. It will be retrievable on the very next question."
@@ -278,9 +304,10 @@ def tool_kg_fact(args: dict) -> str:
 
     if op == "edit":
         if args.get("text"):
-            facts[index]["text"] = args["text"].strip()
-        if isinstance(args.get("keywords"), list) and args["keywords"]:
-            facts[index]["keywords"] = [str(k) for k in args["keywords"]]
+            facts[index]["text"] = str(args["text"]).strip()
+        edited_keywords = normalize_keywords(args.get("keywords"))
+        if edited_keywords:
+            facts[index]["keywords"] = edited_keywords
         save_facts(facts)
         log(f"edited fact: {facts[index]['topic']}")
         return f"Updated '{facts[index]['topic']}'."
