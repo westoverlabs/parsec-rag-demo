@@ -194,89 +194,8 @@ get between you and your question.
 
 ---
 
-## Step 4 — Wire it into your coding agent
 
-Now make it invisible. Everything above was a harness to *show* you the effect;
-in a real agent the grounding just happens.
-
-### It greets you when you arrive
-
-Both Claude Code and Codex also fire a **`SessionStart`** hook when a session
-begins. This repo uses it ([`session_greeting.py`](./session_greeting.py)) to
-welcome you and say what to try first — so cloning the repo and typing `claude`
-doesn't leave you at a blank prompt guessing.
-
-It's the same one-file-two-tools trick as the grounding hook: identical script,
-identical `hookSpecificOutput.additionalContext` shape, only the registration
-file differs.
-
-**What each tool actually does with it** — tested, because the two differ:
-
-| | Claude Code | Codex |
-|---|---|---|
-| Banner visible before you type | **Yes** — at boot, as `SessionStart:startup says:` | No — it appears with your first turn |
-| Assistant's first reply is oriented | Yes | Yes |
-| Assistant speaks *unprompted* | **No** | **No** |
-
-That last row is the honest limit, and it's worth understanding. A `SessionStart`
-hook can put text on your screen (via the `systemMessage` field) and can brief the
-model (via `additionalContext`), but **neither tool has the assistant volunteer a
-message into an empty session** — models respond, they don't initiate. So the
-welcome you see at boot is a system banner, and the *assistant's* greeting arrives
-on your first message, whatever that message is. Typing `hi` gets you the full
-orientation.
-
-> **First time in a session-based terminal tool?** Worth knowing regardless of the
-> greeting: this is a running conversation, not a one-shot command. Type a
-> question, press Enter, keep going — context carries between messages. Answers
-> stream in a piece at a time. A tool call may appear mid-answer; that's the
-> grounding hook fetching facts, not an error. `Ctrl-C` or `/exit` to leave.
-
-Both tools also ask you to approve the folder (and, in Codex, the hooks) the first
-time. Say yes, or nothing runs.
-
-### Claude Code
-
-This repo ships [`.claude/settings.json`](./.claude/settings.json) with the hook
-already configured:
-
-1. Install Claude Code (`npm install -g @anthropic-ai/claude-code`).
-2. From inside your clone, run `claude`. It reads `.claude/settings.json` and
-   registers the hook — it may ask once to approve it. Say yes.
-3. Ask *"Which spectral class dominates the Eos family?"* The hook grounds it
-   silently. `/hooks` confirms a `UserPromptSubmit` hook is active.
-
-To use it in **any** project, copy the `hooks` block into your own
-`~/.claude/settings.json` and point the command at wherever you put
-`ground_with_kg.py` and `astro_kg.json`.
-
-### Codex
-
-This repo ships [`.codex/hooks.json`](./.codex/hooks.json) — the Codex counterpart,
-registering the **same** script under the **same** event:
-
-1. Install Codex (`npm install -g @openai/codex`), version **0.146+**.
-2. From inside your clone, run `codex` once. It discovers `.codex/hooks.json` and
-   asks you to **trust the grounding hook** — it won't silently run a program a
-   cloned repo dropped in your project. Approve it once and it fires on every
-   prompt afterward, interactive or headless.
-3. Ask an astronomy question — grounded, exactly as in Claude Code.
-
-> **Same script, two tiny registration files.** `ground_with_kg.py` is
-> byte-for-byte identical in both tools — the ~90 lines never change. The only
-> deltas: how each names the repo root (`$CLAUDE_PROJECT_DIR` vs
-> `$(git rev-parse --show-toplevel)`), and that Codex's entry takes an optional
-> `timeout`.
-
-> **If you script `codex exec` directly:** an **untrusted** hook is silently
-> skipped in headless `exec` — no error, it just doesn't run. Do the interactive
-> trust above first, or pass `--dangerously-bypass-hook-trust`. Codex moves fast;
-> if grounding ever stops appearing, re-run `codex` interactively to re-approve.
-> The retrieval logic is unaffected.
-
----
-
-## Step 5 — The interactive demo: toggle grounding live, edit the KG live
+## Step 4 — The interactive demo: toggle grounding live, edit the KG live
 
 This is the one to run in front of people. A full-screen local agent where you can
 switch grounding **on and off mid-conversation**, **edit the knowledge base while
@@ -432,7 +351,7 @@ This is the *short* version. `rehearse.sh` below runs the fuller 13-step script
 including the `.rag_off` toggle and the live add-a-fact. Both call the same
 `poison_kb.sh` and `reset_demo.sh`, so the two can't drift apart.
 
-### Rehearsing it
+### Non Interactive Version: Rehearsing it
 
 To push the whole sequence through without typing it:
 
@@ -542,7 +461,7 @@ SDK, no dependencies, consistent with the rest of the repo. It exposes three too
 | `toggle_rag(enabled)` | Turn grounding on or off at runtime. |
 | `kg_fact(op, ...)` | `list` / `add` / `edit` / `remove` facts in `astro_kg.json`. |
 
-### 5a. Toggle grounding on and off, mid-conversation
+### 4a. Toggle grounding on and off, mid-conversation
 
 Grounding is ON unless a file called `.rag_off` exists. The flag is re-read on
 **every single retrieval call**, so you can flip it from a second terminal without
@@ -583,7 +502,7 @@ Nothing restarted. Nothing recompiled. One empty file.
 > reconnect, which would kill the live-toggle moment. So the tool stays listed and
 > the flag is enforced *inside* the call.
 
-### 5b. Edit the knowledge base while the agent is running
+### 4b. Edit the knowledge base while the agent is running
 
 Ask, in plain English:
 
@@ -598,7 +517,7 @@ is retrieved on the very next question — no reindex, no restart, no rebuild.
 Edits are written atomically and preserve the file's hand-written formatting, so
 `astro_kg.json` stays readable and diffable after the agent has touched it.
 
-### 5c. The part worth staying for: grounding is trust, not truth
+### 4c. The part worth staying for: grounding is trust, not truth
 
 Everything so far shows grounding making a model *better*. Now break it — this is
 the most useful sixty seconds of the demo.
@@ -676,7 +595,7 @@ temp files, and tells you what it changed. Ask the question once more afterwards
 the resonances come back, which proves the reset actually worked. Run it before
 handing the laptop to the next person; it's safe to run when nothing is dirty.
 
-### 5d. Honest limitations you should know before demoing
+### 4d. Our index is not very thoughtful: Honest limitations
 
 - **Retrieval is naive keyword overlap** — about 20 lines, deliberately. It is
   easy to miss. Real example from our testing: *"What causes the Kirkwood gaps?"*
@@ -715,6 +634,88 @@ handing the laptop to the next person; it's safe to run when nothing is dirty.
   Don't take that risk in front of an audience.
 - **Reasoning models pause before answering.** `qwen3.5:2b` thinks first, so
   expect a silent gap. `llama3.2` is the snappier choice for a live room.
+
+---
+
+## Step 5 — BYOA: Wire it into your coding agent
+
+Now make it invisible. Everything above was a harness to *show* you the effect;
+in a real agent the grounding just happens.
+
+### It greets you when you arrive
+
+Both Claude Code and Codex also fire a **`SessionStart`** hook when a session
+begins. This repo uses it ([`session_greeting.py`](./session_greeting.py)) to
+welcome you and say what to try first — so cloning the repo and typing `claude`
+doesn't leave you at a blank prompt guessing.
+
+It's the same one-file-two-tools trick as the grounding hook: identical script,
+identical `hookSpecificOutput.additionalContext` shape, only the registration
+file differs.
+
+**What each tool actually does with it** — tested, because the two differ:
+
+| | Claude Code | Codex |
+|---|---|---|
+| Banner visible before you type | **Yes** — at boot, as `SessionStart:startup says:` | No — it appears with your first turn |
+| Assistant's first reply is oriented | Yes | Yes |
+| Assistant speaks *unprompted* | **No** | **No** |
+
+That last row is the honest limit, and it's worth understanding. A `SessionStart`
+hook can put text on your screen (via the `systemMessage` field) and can brief the
+model (via `additionalContext`), but **neither tool has the assistant volunteer a
+message into an empty session** — models respond, they don't initiate. So the
+welcome you see at boot is a system banner, and the *assistant's* greeting arrives
+on your first message, whatever that message is. Typing `hi` gets you the full
+orientation.
+
+> **First time in a session-based terminal tool?** Worth knowing regardless of the
+> greeting: this is a running conversation, not a one-shot command. Type a
+> question, press Enter, keep going — context carries between messages. Answers
+> stream in a piece at a time. A tool call may appear mid-answer; that's the
+> grounding hook fetching facts, not an error. `Ctrl-C` or `/exit` to leave.
+
+Both tools also ask you to approve the folder (and, in Codex, the hooks) the first
+time. Say yes, or nothing runs.
+
+### Claude Code
+
+This repo ships [`.claude/settings.json`](./.claude/settings.json) with the hook
+already configured:
+
+1. Install Claude Code (`npm install -g @anthropic-ai/claude-code`).
+2. From inside your clone, run `claude`. It reads `.claude/settings.json` and
+   registers the hook — it may ask once to approve it. Say yes.
+3. Ask *"Which spectral class dominates the Eos family?"* The hook grounds it
+   silently. `/hooks` confirms a `UserPromptSubmit` hook is active.
+
+To use it in **any** project, copy the `hooks` block into your own
+`~/.claude/settings.json` and point the command at wherever you put
+`ground_with_kg.py` and `astro_kg.json`.
+
+### Codex
+
+This repo ships [`.codex/hooks.json`](./.codex/hooks.json) — the Codex counterpart,
+registering the **same** script under the **same** event:
+
+1. Install Codex (`npm install -g @openai/codex`), version **0.146+**.
+2. From inside your clone, run `codex` once. It discovers `.codex/hooks.json` and
+   asks you to **trust the grounding hook** — it won't silently run a program a
+   cloned repo dropped in your project. Approve it once and it fires on every
+   prompt afterward, interactive or headless.
+3. Ask an astronomy question — grounded, exactly as in Claude Code.
+
+> **Same script, two tiny registration files.** `ground_with_kg.py` is
+> byte-for-byte identical in both tools — the ~90 lines never change. The only
+> deltas: how each names the repo root (`$CLAUDE_PROJECT_DIR` vs
+> `$(git rev-parse --show-toplevel)`), and that Codex's entry takes an optional
+> `timeout`.
+
+> **If you script `codex exec` directly:** an **untrusted** hook is silently
+> skipped in headless `exec` — no error, it just doesn't run. Do the interactive
+> trust above first, or pass `--dangerously-bypass-hook-trust`. Codex moves fast;
+> if grounding ever stops appearing, re-run `codex` interactively to re-approve.
+> The retrieval logic is unaffected.
 
 ---
 
