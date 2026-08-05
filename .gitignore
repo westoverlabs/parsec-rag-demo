@@ -3,3 +3,8 @@ __pycache__/
 .DS_Store
 .venv/
 .ruff_cache/
+
+# Runtime grounding switch, created by `touch .rag_off` or the toggle_rag tool.
+.rag_off
+# Atomic-write temporaries from the MCP server's KG edits.
+.astro_kg.*.tmp
