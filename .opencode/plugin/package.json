@@ -1,0 +1,18 @@
+{
+  "name": "parsec-greeting-plugin",
+  "version": "1.0.0",
+  "description": "Orientation greeting plugin for opencode PARSEC RAG demo",
+  "main": "greeting.js",
+  "exports": "./greeting.js",
+  "type": "commonjs",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "greeting"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
