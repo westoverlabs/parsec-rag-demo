@@ -33,7 +33,8 @@ for arg in "$@"; do
   case "$arg" in
     --check) CHECK_ONLY=1 ;;
     --cloud) USE_CLOUD=1 ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # Header comment block, stopping at the first line of real code.
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg (try --help)" >&2; exit 1 ;;
   esac
 done
@@ -232,6 +233,24 @@ fi
 WHERE="local, via Ollama"
 [ "$USE_CLOUD" = "1" ] && WHERE="Ollama Cloud, free tier"
 
+# OpenCode has no SessionStart hook (no hook system at all -- see the README),
+# so the greeting that Claude Code and Codex get from session_greeting.py has to
+# be printed here instead. Not the model speaking first, but the same orientation
+# at the same moment, which is what actually matters to a newcomer.
+say "Welcome to the PARSEC RAG demo"
+cat <<'EOF'
+    You are about to drop into a conversation with a small AI model running
+    entirely on this machine. No API key, no cloud account.
+
+    If you have not used one of these before: this is a running conversation,
+    not a one-shot command. Type a question, press Enter, and keep going --
+    context carries between messages. The answer streams in a piece at a time,
+    and you will sometimes see a tool call appear mid-answer. That is the
+    knowledge base being consulted. It is the demo working, not an error.
+
+    Ctrl-C, or /exit, to leave.
+EOF
+
 say "Launching the interactive agent"
 cat <<EOF
     Model:    $MODEL  ($WHERE)
@@ -261,7 +280,17 @@ if [ "$USE_CLOUD" != "1" ] && [ "$MODEL" = "llama3.2" ]; then
     again. For a steadier room, re-run with:  ./start_tui_demo.sh --cloud
 EOF
 fi
-sleep 2
+# OpenCode's TUI takes over and CLEARS the screen, so everything printed above --
+# including the welcome -- vanishes the instant it starts. Wait for the user
+# rather than sleeping, so the greeting is actually read. (A bare sleep looked
+# fine in testing and then wiped the banner in under a second on a real launch.)
+if [ -t 0 ]; then
+  printf '\n'
+  read -r -p "    Press Enter to start the session (the screen will clear)... " _ || true
+else
+  sleep 2
+fi
+
 # Pass the model explicitly: the `astro` agent in opencode.json pins a default,
 # and MODEL= / --cloud must be able to override it.
 exec opencode --agent astro --model "ollama/$MODEL"
