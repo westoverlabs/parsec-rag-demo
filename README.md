@@ -21,11 +21,18 @@ The "knowledge graph" is [`astro_kg.json`](./astro_kg.json) — 18 facts about
 asteroid families, orbital elements, and the LSST survey. Swap in your own and
 the demo grounds the model in whatever domain you care about.
 
-**Where this goes.** Step 1 shows grounding changing a real answer in about ten
-seconds. Steps 3 and 4 wire it into Claude Code and Codex as an invisible hook.
-Step 5 is the one to run for an audience: an interactive local agent where you
-toggle grounding live, edit the knowledge base mid-conversation, and deliberately
-poison it to see grounding's failure mode.
+**The run order for a live session.** **Step 1** shows grounding changing a real
+answer in about ten seconds — run it together, everyone on their own laptop.
+**Step 4** is the main event: an interactive local agent where you toggle grounding
+live, edit the knowledge base mid-conversation, and deliberately poison it to watch
+grounding's failure mode. **Step 5** wires the exact same thing into Claude Code and
+Codex as an invisible hook. Steps 2–3 are the short *why* in between.
+
+**The bigger point — the real moral.** This isn't about handing your science to a
+model, and it isn't about leaning on one. It's a *coworking* relationship: the more
+context you give an agent about your data and your standards, the more it becomes a
+genuinely useful collaborator instead of a confident stranger. Grounding is how you
+build that context — and that's worth more than any single demo below.
 
 ---
 
@@ -171,7 +178,7 @@ Code and Codex both run it right before your prompt reaches the model, handing i
 a JSON object on stdin. It:
 
 1. **reads** your prompt from stdin,
-2. **searches** `astro_kg.json` — plain keyword overlap, most relevant first,
+2. **searches** `astro_kg.json` — TF-IDF cosine similarity, most relevant first,
 3. **selects** the top few facts,
 4. **injects** them by printing this JSON:
 
@@ -401,51 +408,11 @@ That's a genuinely different shape from the hooks, and it's worth saying out lou
 | Can you watch it happen? | No — it's invisible | Yes — you see the tool call |
 | Greets you at session start | Yes — `SessionStart` hook | No — banner printed by `start_tui_demo.sh` instead |
 
-#### Why we didn't use the plugin API — measured, not assumed
-
-The plugin API looks on paper like it should give OpenCode full parity: a
-`session.created` handler for the greeting and a `chat.message` handler for silent
-grounding, both a few lines. We built both and ran them. Neither earns its place.
-
-First, the good news: **plugins need no extra tooling.** A `.ts` file in
-`.opencode/plugin/` loads and runs with nothing installed beyond OpenCode itself —
-no Bun, no Node, no TypeScript compiler. That part is genuinely free.
-
-**On the greeting — `session.created` cannot deliver one.** Three findings, each
-verified on this host:
-
-- **It doesn't fire at launch.** In the TUI, a session isn't created until you
-  submit your first message. Timestamps from a file-logging probe: plugin init at
-  `16:05:01`, `session.created` at `16:05:30` — the moment the first prompt was
-  sent, 29 seconds later. A greeting that waits until after you've typed has
-  already missed its job.
-- **`console.log` corrupts the TUI.** The obvious one-liner writes to stdout,
-  which is the TUI's own rendering channel. The screen fills with interleaved
-  garbage (`PROBEPROBE_EVENT:message.updateddated`) and the interface is unusable.
-  The naive version of this feature actively breaks the demo.
-- **`tui.showToast()` exists and returns success, but never rendered.** Twenty
-  toasts fired at one-second intervals, twenty-five rapid screen captures, not one
-  visible. (OpenCode 1.18.13.)
-
-So the terminal banner in `start_tui_demo.sh` stays. It is the only mechanism that
-greets you *before* you interact, which is the whole point.
-
-**On grounding — `chat.message` works, and would make the demo worse.** It fires
-with a mutable prompt, and prepending retrieved facts genuinely works (349
-characters injected, confirmed). But when we ran it:
-
-- **It double-grounds.** The model received the injected facts *and* still called
-  `search_astro_kb`. Same facts, twice.
-- **It degraded the agent loop.** In the same run the model wandered into an
-  unrelated skill and made a spurious `kg_fact` call.
-- **It would delete the best thing about this path.** The visible
-  `⚙ astro-kg_search_astro_kb {…}` is the reason the table above calls the MCP
-  route *observable*. Silent injection hides exactly what an audience came to see,
-  to reproduce something Claude Code and Codex already do properly.
-
-Making it a true replacement would mean disabling the MCP tool to stop the
-double-grounding — trading a working, watchable mechanism for an invisible one. So
-we left it out. **The mechanism exists; using it here would be strictly worse.**
+> **Why the MCP tool and not an opencode plugin?** A deliberate, measured choice:
+> a plugin can't greet before your first input, and silent grounding via a plugin
+> would hide the visible `⚙ astro-kg_search_astro_kb {…}` tool call that makes this
+> path worth watching on a projector. Full reasoning — and the opencode plugin's
+> real constraints — are in [`PRESENTER_NOTES.md`](./PRESENTER_NOTES.md).
 
 Neither is better. The hook guarantees grounding; the tool makes grounding
 *observable*, which is exactly what you want on a projector. You'll see a line
@@ -595,45 +562,12 @@ temp files, and tells you what it changed. Ask the question once more afterwards
 the resonances come back, which proves the reset actually worked. Run it before
 handing the laptop to the next person; it's safe to run when nothing is dirty.
 
-### 4d. Our index is not very thoughtful: Honest limitations
+### 4d. Honest limitations
 
-- **Retrieval is naive keyword overlap** — about 20 lines, deliberately. It is
-  easy to miss. Real example from our testing: *"What causes the Kirkwood gaps?"*
-  retrieves the Kirkwood fact, but *"What causes the Kirkwood gaps in the main
-  belt?"* retrieves three **asteroid family** facts instead, because "main" and
-  "belt" happen to appear in them. And *"Why are there gaps in the asteroid belt?"*
-  misses the Kirkwood fact entirely — it ties on score and loses to earlier facts.
-  Phrase demo questions in the KB's own vocabulary, or upgrade the retrieval (this
-  is exactly the job embeddings do).
-- **The model chooses whether to call the tool.** Usually it does; occasionally a
-  small model answers without it. The `astro` agent's system prompt pushes hard on
-  calling `search_astro_kb` first. The hook path in step 4 has no such gap.
-- **`llama3.2` is a 3B model in an agent loop, and it is visibly flaky at tool
-  calls.** Measured on this host:
-
-  | Model | Simple question | Add-a-fact prompt |
-  |---|---|---|
-  | `llama3.2` (local) | 5/6 | 3/4 |
-  | `gpt-oss:20b-cloud` | 6/6 | reliable in all runs |
-
-  When it misses, it prints the tool-call JSON as plain text and nothing happens —
-  we've seen `astro-kg_search_ astro_kb` with a stray space, a string truncated at
-  the apostrophe in "Jupiter's", and a turn that returned no answer at all. **All
-  of these fail silently.** That's why Act 4 — the one beat you can't afford to
-  lose — is a script (`poison_kb.sh`) rather than a prompt. If a prompt-driven step
-  misfires live, just ask again; it usually lands the second time.
-
-  **For a room, consider `./start_tui_demo.sh --cloud`.** Same demo, same free
-  tier, materially steadier tool calling. Note this only affects Step 5's agent
-  loop — Step 1's `demo.py` makes no tool calls at all and is rock solid on
-  `llama3.2`.
-  If you want a steadier agent, `gpt-oss:20b-cloud` on the free tier handled the
-  same tool calls cleanly every time we tried. The `astro` agent also has file,
-  shell and edit tools **disabled** — it can only touch the knowledge base — which
-  was added after `llama3.2`, mid-run, tried to edit a file outside the repo.
-  Don't take that risk in front of an audience.
-- **Reasoning models pause before answering.** `qwen3.5:2b` thinks first, so
-  expect a silent gap. `llama3.2` is the snappier choice for a live room.
+Retrieval is **TF-IDF cosine similarity** (pure stdlib), the model occasionally
+flakes on a tool call with a small local model, and a few other things are worth
+knowing before you present — all collected in [`PRESENTER_NOTES.md`](./PRESENTER_NOTES.md)
+so they stay off the projector.
 
 ---
 
@@ -716,6 +650,21 @@ registering the **same** script under the **same** event:
 > trust above first, or pass `--dangerously-bypass-hook-trust`. Codex moves fast;
 > if grounding ever stops appearing, re-run `codex` interactively to re-approve.
 > The retrieval logic is unaffected.
+
+---
+
+## See how different agents handle the same task
+
+We keep example branches that run the *same* job — “rewrite this retrieval to use
+TF-IDF” — under different agent setups: ungrounded one-shots versus an agent grounded
+in the repo's own coding standards. The contrast *is* the lesson — grounding is what
+turns “confidently rewrites it however it likes (and reaches for numpy)” into
+“rewrites it the way *this project* actually does things.” Browse the `example/*`
+branches.
+
+The reusable toolkit this demo seeds lives at
+**[westoverlabs/parsec](https://github.com/westoverlabs/parsec)** — fork it, add the
+tool your group needs, send it back. Science gets better when we work together.
 
 ---
 
