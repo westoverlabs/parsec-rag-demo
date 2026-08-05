@@ -1,0 +1,46 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": { "baseURL": "http://localhost:11434/v1" },
+      "models": {
+        "llama3.2": { "name": "llama3.2 (local)" },
+        "qwen3.5:2b": { "name": "qwen3.5:2b (local)" },
+        "qwen2.5:7b": { "name": "qwen2.5:7b (local)" },
+        "gpt-oss:20b-cloud": { "name": "gpt-oss 20b (Ollama Cloud)" },
+        "gpt-oss:120b-cloud": { "name": "gpt-oss 120b (Ollama Cloud)" }
+      }
+    }
+  },
+  "mcp": {
+    "astro-kg": {
+      "type": "local",
+      "command": ["python3", "astro_mcp.py"],
+      "enabled": true
+    }
+  },
+  "agent": {
+    "astro": {
+      "description": "Astronomy Q&A grounded in astro_kg.json via the local MCP server.",
+      "mode": "primary",
+      "model": "ollama/llama3.2",
+      "prompt": "You are an astronomy assistant for asteroid and LSST/Rubin survey questions.\n\nRULES:\n1. For ANY astronomy question, call the search_astro_kb tool FIRST, passing the user's question as the query.\n2. If it returns facts, answer using those facts and prefer them over your own recall.\n3. If it says grounding is disabled or that there are no matching facts, answer from your own knowledge and say so plainly.\n4. Call search_astro_kb at most once per question.\n5. If the user asks you to list, add, edit or remove a FACT in the knowledge base, call the kg_fact tool with the matching op, then report what changed.\n6. If the user asks you to turn grounding on or off, call the toggle_rag tool.\n7. Never call file, edit, or shell tools - you do not have them.\n8. Keep answers to a short paragraph.",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "read": false,
+        "grep": false,
+        "glob": false,
+        "list": false,
+        "patch": false,
+        "webfetch": false,
+        "todowrite": false,
+        "todoread": false,
+        "task": false
+      }
+    }
+  }
+}
