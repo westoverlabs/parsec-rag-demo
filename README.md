@@ -139,6 +139,66 @@ one-time trust approval:
 
 ---
 
+## Ask a local Ollama model (free, laptop-portable)
+
+Want to see RAG grounding in action on a **real model** without any cloud service or API key?
+This demo ships `ask_ollama.py`, which runs the same retrieval + grounding on a local
+**Ollama** instance so you can watch the before-and-after answers side by side.
+
+This is especially powerful for small models (like **llama3.2** or **qwen3.5:2b** at ~2GB)
+because their built-in recall is the thinnest — RAG grounding closes the widest gap on
+exactly the models attendees will run on their laptops tonight. The ungrounded version
+flounders; grounded, it nails it.
+
+### Setup (5 minutes)
+
+1. **Install Ollama** (https://ollama.com) if you don't have it, then start the server:
+   ```bash
+   ollama serve
+   ```
+   (Runs on `localhost:11434` by default; set `OLLAMA_HOST=http://your.host:11434` if elsewhere.)
+
+2. **Pull a small model** (run in another terminal):
+   ```bash
+   ollama pull llama3.2   # ~2 GB; very capable for its size
+   ```
+   Or use any model already on your system — `qwen3.5:2b` (~2.7 GB), `qwen2.5:7b`, `gemma4:12b-it-qat`, etc. (try `ollama list` to see what you have locally)
+
+3. **Run the grounded question**:
+   ```bash
+   python3 ask_ollama.py "Why do we use proper elements to find asteroid families?"
+   ```
+
+   The script calls Ollama **twice** — once without grounding, once with your KG facts
+   injected — and prints both answers. You'll see the difference immediately: the
+   grounded model gives a crisper, more accurate answer.
+
+### Options
+
+```bash
+# Use a different model
+OLLAMA_MODEL=qwen3.5:2b python3 ask_ollama.py "..."
+
+# Skip the ungrounded call (faster if you just want to see the grounded answer)
+python3 ask_ollama.py --grounded-only "..."
+
+# Point at a different Ollama host (e.g., on a server)
+OLLAMA_HOST=http://192.168.1.100:11434 python3 ask_ollama.py "..."
+```
+
+### Why RAG matters MORE for small models
+
+Large cloud models (Claude, GPT) have enormous recall built in — they've seen vast
+swaths of the internet and remember a lot. RAG helps them stay grounded in YOUR specific
+facts, but they often do okay without it.
+
+Small local models have thin recall — they only "know" what they were trained on, and
+details are fuzzy. **RAG grounding is what turns them from "maybe right" to "definitely
+right."** That's why tonight's demo lands hardest on the laptop models attendees are
+actually running.
+
+---
+
 ## Before / after — why it matters
 
 **Without the hook**, you ask *"Why do we cluster in proper element space to find
@@ -156,6 +216,48 @@ standard-library Python in a hook.** Point it at your asteroid families, your
 observing logs, your instrument notes — and spend your attention on the science
 (*"could these two detections be the same object?"*) instead of on managing arrays
 of context by hand.
+
+---
+
+## Using this with OpenCode (TUI agent)
+
+**OpenCode** is a TUI AI agent that works great with local models. It needs a one-time
+install (below); the repo's `.opencode/opencode.jsonc` is just a project marker and does
+not configure a provider — your Ollama provider comes from your global OpenCode settings
+(`~/.config/opencode/opencode.jsonc`) or the `--model ollama/...` flag.
+
+**Best approach for tonight's talk:**
+
+1. **Prove grounding works** with `ask_ollama.py` (the before/after side-by-side).
+2. **Drop into the TUI** on the same local Ollama backend — ungrounded, but it's the
+   experience layer; the grounding proof already landed in step 1.
+
+### Quick start with OpenCode
+
+1. **Install OpenCode** (if you don't have it):
+   ```bash
+   npm install -g opencode-ai
+   ```
+
+2. **Prove grounding works first** (see ask_ollama.py section above — run it once to show the before/after difference).
+
+3. **Then start the TUI agent** pointed at your local Ollama instance:
+   ```bash
+   cd lsst-hook-rag-demo
+   opencode run "Why do we use proper elements to find asteroid families?" --model ollama/qwen2.5:7b
+   ```
+   Or for an interactive session:
+   ```bash
+   opencode --model ollama/qwen2.5:7b
+   ```
+
+Replace `qwen2.5:7b` with whatever model you pulled earlier (e.g., `llama3.2`). OpenCode will talk to your local Ollama on `localhost:11434` — no cloud, no API keys.
+
+### Why not automatic RAG grounding in OpenCode?
+
+Unlike Claude Code and Codex, OpenCode doesn't have a `UserPromptSubmit`-style hook that fires on every prompt. OpenCode uses MCP (Model Context Protocol) for integrations, which would require a custom server to inject facts on-the-fly — overkill for a talk demo.
+
+**The honest, working path:** `ask_ollama.py` proves RAG makes a difference (side-by-side answers). Then OpenCode TUI lets attendees interact with a grounded agent on the *same* Ollama backend. The grounding effect is already proven; the TUI is the experience layer.
 
 ---
 
@@ -183,6 +285,7 @@ That's the whole editing workflow — no schema, no migration, no rebuild.
 | `ground_with_kg.py` | The hook — reads the prompt, retrieves facts, injects them. ~90 lines, stdlib only. |
 | `astro_kg.json` | The knowledge base — asteroid families, orbital elements, LSST facts. Edit freely. |
 | `demo.py` | Before/after viewer so you can see the effect without wiring anything up. |
+| `ask_ollama.py` | **Free laptop path** — ask a local Ollama model twice (ungrounded vs grounded). See RAG in action, no API key. |
 | `.claude/settings.json` | Ready-made Claude Code hook registration (works on clone). |
 | `.codex/hooks.json` | Ready-made Codex hook registration (works on clone, after a one-time trust approval). |
 
