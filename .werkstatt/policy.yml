@@ -1,0 +1,4 @@
+# ShipIt policy (governor rollout 2026-11-05). Holds only for new cost or deleted data (merge canon).
+base_branch: main
+capability_bundles: [owner-ship-it]
+hold_for_owner: [cost, data_deletion]
